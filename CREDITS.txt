@@ -1,5 +1,5 @@
-BIG TOP BUILDER - Free Demo  (v@VERSION@)
-=========================================
+BIG TOP BUILDER CLASSIC - Free Demo  (v@VERSION@)
+=================================================
 
 Developed & Published by ... Ironite
 Game Design ................ Ironite

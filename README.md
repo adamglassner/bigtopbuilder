@@ -1,4 +1,4 @@
-# Big Top Builder (Demo)
+# Big Top Builder Classic (Demo)
 
 A circus management sim by Ironite, written in Go with [Ebitengine](https://ebitengine.org).
 Raise the tents, hire the troupe, plan each show's running order and keep the crowd cheering from 6 to

@@ -1,4 +1,4 @@
-// Package circus is the simulation behind Big Top Builder: the circus grounds,
+// Package circus is the simulation behind Big Top Builder Classic: the circus grounds,
 // the tents and their shows, the performers, the guests and the money. It has
 // no graphics, so it can be tested on its own.
 package circus

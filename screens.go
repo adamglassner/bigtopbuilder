@@ -98,11 +98,22 @@ func (g *game) drawTitle(p pen) {
 	p.text("Big Top", display(110), lx, ly, alLeft, cGold)
 	p.text("Builder", display(110), lx+6, ly+112, alLeft, cRed)
 	p.text("Builder", display(110), lx, ly+106, alLeft, cGold)
+	// the "Classic" ribbon
+	cw := textW("CLASSIC", head(30)) + 60
+	cx := lx + 222 - cw/2 // centred under the logo
+	cy := ly + 180
+	p.poly(cRedDk, cx-14, cy+6, cx, cy+6, cx, cy+46, cx-14, cy+46, cx-4, cy+26)
+	p.poly(cRedDk, cx+cw+14, cy+6, cx+cw, cy+6, cx+cw, cy+46, cx+cw+14, cy+46, cx+cw+4, cy+26)
+	p.rect(cx, cy, cw, 42, cRed)
+	p.rect(cx, cy+4, cw, 2, cGold)
+	p.rect(cx, cy+36, cw, 2, cGold)
+	p.text("CLASSIC", head(30), cx+cw/2, cy+21, alCenter, cCream)
+	ly += 58
 	p.rrect(lx+4, ly+178, 96, 32, 8, cRed)
 	p.text("DEMO", head(20), lx+52, ly+194, alCenter, cCream)
 	p.text("Build the greatest show on your turf.", body(20, 600), lx+116, ly+194, alLeft, cCream)
 
-	bx, by, bw := lx, ly+250, 300.0
+	bx, by, bw := lx, ly+236, 300.0
 	g.button(p, bx, by, bw, 58, "PLAY THE DEMO", bRed, true, func() { g.newRun() })
 	g.button(p, bx, by+72, bw, 46, "How to Play", bDark, true, func() { g.panel = "help" })
 	g.button(p, bx, by+130, bw, 46, "Settings", bDark, true, func() { g.panel = "settings" })

@@ -148,8 +148,8 @@ func (g *game) drawHUD(p pen) {
 	s := g.sim
 	p.rect(-200, 0, 1840, 64, cNight)
 	p.rect(-200, 62, 1840, 3, cRed)
-	p.text("Big Top", display(20), 30, 22, alLeft, cGold)
-	p.text("Builder", display(20), 30, 44, alLeft, cGold)
+	p.text("Big Top Builder", display(15), 26, 22, alLeft, cGold)
+	p.text("CLASSIC", head(12), 27, 44, alLeft, cCream)
 	p.rrect(180, 14, 52, 20, 5, cRed)
 	p.text("DEMO", head(12), 206, 24, alCenter, cCream)
 

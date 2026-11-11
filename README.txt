@@ -1,8 +1,8 @@
-BIG TOP BUILDER - Free Demo  (v@VERSION@)
+BIG TOP BUILDER CLASSIC - Free Demo  (v@VERSION@)
 An Ironite game. (c) 2026 Ironite.
-=========================================
+=================================================
 
-Open Big Top Builder from the Start menu (Ironite folder), your desktop,
+Open Big Top Builder Classic from the Start menu (Ironite folder), your desktop,
 or Ironite Launcher. Or just double-click BigTopBuilder.exe.
 
 THE DEMO

@@ -1,4 +1,4 @@
-// Package synth makes Big Top Builder's music and sound effects from
+// Package synth makes Big Top Builder Classic's music and sound effects from
 // scratch: a circus march and drumrolls, applause, bells and honks.
 package synth
 
@@ -114,7 +114,7 @@ func (b buf) pcm(gain float64) []byte {
 }
 
 // March writes "Brookhaven Bandwagon": 32 bars of an oom-pah circus march in C,
-// as 16-bit stereo PCM. Written for Big Top Builder by Ironite.
+// as 16-bit stereo PCM. Written for Big Top Builder Classic by Ironite.
 func March() []byte {
 	const bpm = 128.0
 	beat := 60 / bpm

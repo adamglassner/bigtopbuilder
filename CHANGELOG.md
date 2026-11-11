@@ -1,7 +1,12 @@
 # Changelog
 
-All notable changes to Big Top Builder are recorded here.
+All notable changes to Big Top Builder Classic are recorded here.
 Versions follow Semantic Versioning (MAJOR.MINOR.PATCH). Versions before 1.0.0 are the free demo.
+
+## [0.2.1] - 2026-11-11
+
+### Changed
+- The game is now called Big Top Builder Classic, on the title screen, the window, the top bar, the installer and its shortcuts. Your saves, settings and achievements carry over.
 
 ## [0.2.0] - 2026-11-11
 

@@ -1,4 +1,4 @@
-// Big Top Builder (c) 2026 Ironite.
+// Big Top Builder Classic (c) 2026 Ironite.
 package main
 
 import (

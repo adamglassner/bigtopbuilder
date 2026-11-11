@@ -66,6 +66,13 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut for {#GameName}"; 
 [Files]
 Source: "{#Files}\{#Bundle}\*"; DestDir: "{app}\Games\{#Bundle}"; Flags: ignoreversion sharedfile uninsnosharedfileprompt
 
+#ifdef OldGameName
+[InstallDelete]
+; Shortcuts from before the game was renamed.
+Type: files; Name: "{group}\{#OldGameName}.lnk"
+Type: files; Name: "{autodesktop}\{#OldGameName}.lnk"
+#endif
+
 [Icons]
 Name: "{group}\{#GameName}"; Filename: "{app}\Games\{#Bundle}\{#Exe}"; WorkingDir: "{app}\Games\{#Bundle}"; Comment: "{#Tagline}"
 Name: "{autodesktop}\{#GameName}"; Filename: "{app}\Games\{#Bundle}\{#Exe}"; WorkingDir: "{app}\Games\{#Bundle}"; Comment: "{#Tagline}"; Tasks: desktopicon

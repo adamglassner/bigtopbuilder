@@ -1,10 +1,10 @@
-// Big Top Builder (c) 2026 Ironite.
+// Big Top Builder Classic (c) 2026 Ironite.
 package main
 
 var version = "0.0.0-dev" // set with -ldflags "-X main.version=..."
 
 const (
-	productName = "Big Top Builder"
+	productName = "Big Top Builder Classic"
 	bundleName  = "BigTopBuilder" // folder under %APPDATA%\Ironite
 	gameID      = "bigtop"        // Ironite Launcher's id for this game
 )
