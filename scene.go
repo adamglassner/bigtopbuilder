@@ -318,7 +318,7 @@ func (g *game) drawNight(p pen) {
 	p.rect(-200, 0, 1376, 900, withA(dusk, 0.18+0.42*d))
 	warm := color.RGBA{255, 200, 120, 255}
 	gx, gy := tilePx(0, float64(s.GateY))
-	p.glow(gx, gy+TS/2, 2.6*TS, warm, 0.55*d)
+	p.glow(gx, gy+TS/2, 2.4*TS, warm, 0.26*d)
 	for _, a := range s.Attr {
 		if a.Def.Light <= 0 {
 			continue
@@ -326,10 +326,10 @@ func (g *game) drawNight(p pen) {
 		cx, cy := a.Center()
 		x, y := tilePx(cx, cy)
 		r := (a.Def.Light + float64(a.Def.W)/2) * TS
-		k := 0.45
+		k := 0.2
 		if a.Def.ID == "lamp" {
-			p.glow(x, y-56, 34, cGold, 1.1*d)
-			k = 0.6
+			p.glow(x, y-56, 22, cGold, 0.5*d)
+			k = 0.24
 		}
 		p.glow(x, y, r, warm, k*d)
 		g.drawBulbs(p, a, d)
@@ -350,7 +350,7 @@ func (g *game) drawBulbs(p pen, a *ct.Attraction, d float64) {
 		}
 		c := cols[i%len(cols)]
 		p.circle(bx, byy, 2.2, mix(c, cWhite, 0.4))
-		p.glow(bx, byy, 9, c, 0.5*d)
+		p.glow(bx, byy, 7, c, 0.2*d)
 	}
 	switch a.Def.ID {
 	case "ringtent", "bigtop":

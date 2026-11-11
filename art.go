@@ -182,7 +182,7 @@ func drawSpotlights(p pen, d *ct.Def, cx, by, w, t, dark float64) {
 		ex, ey := bx+math.Sin(ang)*l, top-math.Cos(ang)*l
 		perp := 26.0
 		px, py := math.Cos(ang)*perp, math.Sin(ang)*perp
-		q := p.fade(0.12 + 0.18*dark)
+		q := p.fade(0.05 + 0.07*dark)
 		q.poly(cCream, bx-2, top+10, bx+2, top+10, ex+px, ey+py, ex-px, ey-py)
 	}
 }

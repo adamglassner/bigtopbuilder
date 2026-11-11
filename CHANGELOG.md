@@ -3,6 +3,11 @@
 All notable changes to Big Top Builder are recorded here.
 Versions follow Semantic Versioning (MAJOR.MINOR.PATCH). Versions before 1.0.0 are the free demo.
 
+## [0.1.1] - 2026-11-11
+
+### Changed
+- Softer lighting at night. Light poles, tents, carts and the gate glow much more gently, the strings of bulbs are dimmer, and the spotlights over the tents are fainter, so the grounds are no longer too bright after dark.
+
 ## [0.1.0] - 2026-11-11
 
 ### Added
