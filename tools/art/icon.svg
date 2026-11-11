@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1446"/><stop offset="1" stop-color="#4a2a6a"/></linearGradient>
+    <radialGradient id="gl" cx=".5" cy=".6" r=".5"><stop offset="0" stop-color="#f4b942" stop-opacity=".5"/><stop offset="1" stop-color="#f4b942" stop-opacity="0"/></radialGradient>
+    <clipPath id="r"><rect x="32" y="32" width="960" height="960" rx="200"/></clipPath>
+    <clipPath id="roof"><polygon points="512,170 140,560 884,560"/></clipPath>
+  </defs>
+  <g clip-path="url(#r)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <circle cx="512" cy="600" r="460" fill="url(#gl)"/>
+    <g fill="#fff4dc" opacity=".25">
+      <polygon points="430,170 330,-40 250,-10"/><polygon points="594,170 694,-40 774,-10"/>
+    </g>
+    <g fill="#fff4dc"><circle cx="170" cy="190" r="9"/><circle cx="860" cy="230" r="11"/><circle cx="250" cy="330" r="6"/><circle cx="800" cy="380" r="7"/><circle cx="120" cy="420" r="5"/></g>
+    <g clip-path="url(#roof)">
+      <rect x="100" y="150" width="824" height="420" fill="#fff4dc"/>
+      <polygon points="512,170 100,560 193,560" fill="#e23b3b"/>
+      <polygon points="512,170 286,560 379,560" fill="#e23b3b"/>
+      <polygon points="512,170 472,560 552,560" fill="#e23b3b"/>
+      <polygon points="512,170 645,560 738,560" fill="#e23b3b"/>
+      <polygon points="512,170 831,560 924,560" fill="#e23b3b"/>
+    </g>
+    <rect x="186" y="560" width="652" height="270" fill="#fff4dc"/>
+    <g fill="#e23b3b"><rect x="186" y="560" width="72" height="270"/><rect x="330" y="560" width="72" height="270"/><rect x="622" y="560" width="72" height="270"/><rect x="766" y="560" width="72" height="270"/></g>
+    <rect x="140" y="548" width="744" height="26" fill="#f4b942"/>
+    <g fill="#f4b942"><circle cx="171" cy="574" r="31"/><circle cx="233" cy="574" r="31"/><circle cx="295" cy="574" r="31"/><circle cx="357" cy="574" r="31"/><circle cx="419" cy="574" r="31"/><circle cx="481" cy="574" r="31"/><circle cx="543" cy="574" r="31"/><circle cx="605" cy="574" r="31"/><circle cx="667" cy="574" r="31"/><circle cx="729" cy="574" r="31"/><circle cx="791" cy="574" r="31"/><circle cx="853" cy="574" r="31"/></g>
+    <path d="M422 830 L422 700 Q512 610 602 700 L602 830 Z" fill="#1b1446"/>
+    <path d="M422 830 L422 700 Q450 672 474 660 L460 830 Z" fill="#f4b942"/>
+    <path d="M602 830 L602 700 Q574 672 550 660 L564 830 Z" fill="#f4b942"/>
+    <line x1="512" y1="172" x2="512" y2="70" stroke="#e8d9b5" stroke-width="16"/>
+    <polygon points="512,70 620,98 512,126" fill="#f4b942"/>
+    <rect x="0" y="830" width="1024" height="200" fill="#2a6a3a"/>
+    <rect x="0" y="830" width="1024" height="14" fill="#3b7547"/>
+  </g>
+</svg>
