@@ -119,7 +119,7 @@ func (g *Guest) update(s *Sim, dt float64) {
 				}
 			}
 		}
-		if s.Weather == Drizzle {
+		if s.Weather == Drizzle && !s.IsPath(g.cx, g.cy) { // muddy grass
 			g.Happy -= 0.05 * dt
 		}
 	}
@@ -201,7 +201,11 @@ func (g *Guest) walk(s *Sim, dt float64) {
 	}
 	if g.moving {
 		tx, ty := float64(g.nx)+.5+g.ox, float64(g.ny)+.5+g.oy
-		if g.moveToward(tx, ty, dt) {
+		pace := 1.0
+		if s.IsPath(g.nx, g.ny) {
+			pace = 1.3 // paths are quicker going
+		}
+		if g.moveToward(tx, ty, dt*pace) {
 			g.cx, g.cy = g.nx, g.ny
 			g.moving = false
 			i := s.idx(g.cx, g.cy)
@@ -239,7 +243,7 @@ func (g *Guest) walk(s *Sim, dt float64) {
 	n := 0
 	for _, o := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
 		x, y := g.cx+o[0], g.cy+o[1]
-		if s.in(x, y) && f[s.idx(x, y)] == d-1 {
+		if j := s.idx(x, y); s.in(x, y) && f[j] >= 0 && f[j]+s.stepCost(j) == d {
 			opts[n] = s.idx(x, y)
 			n++
 		}
@@ -363,7 +367,7 @@ func (g *Guest) decide(s *Sim) {
 			if v <= 0 {
 				continue
 			}
-			v /= 1 + float64(d)/18
+			v /= 1 + float64(d)/54
 			w[i] = v
 			total += v
 		}

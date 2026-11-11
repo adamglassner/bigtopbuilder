@@ -110,8 +110,8 @@ func (g *game) drawTitle(p pen) {
 		g.button(p, bx, by+188, bw, 46, "Quit", bDark, true, func() { g.quit = true })
 	}
 	st := g.save.Stats
-	if st.Finished > 0 {
-		p.text("Demo finished "+itoa(st.Finished)+"× · Best final cash "+money(st.BestCash), body(13, 500), bx, by+258, alLeft, cTan)
+	if st.BestNight > 0 {
+		p.text("Longest run: "+itoa(st.BestNight)+" nights · Best cash "+money(st.BestCash), body(13, 500), bx, by+258, alLeft, cTan)
 	}
 	p.text("v"+version+" · Demo · © 2026 Ironite", body(12, 400), 24, 880, alLeft, withA(cTan, 0.8))
 	if art.logo != nil {
@@ -194,14 +194,14 @@ func (g *game) drawHelp(p pen) {
 		}
 	}
 	col(x+40, [][2]string{
-		{"Your circus", "You run a traveling circus. In this demo you play opening week: three nights in Brookhaven, then the wagons roll on."},
-		{"Daytime: build", "Pick something from the bar at the bottom and click the grounds to build it. Guests line up at the gold square in front. Click anything you've built to change its price, or sell it."},
+		{"Your circus", "You run a circus in Brookhaven. Keep it going as many nights as you like. Just don't run out of money!"},
+		{"Daytime: build", "Pick something from the bar at the bottom and click the grounds to build it. Guests line up at the gold square in front. Click anything you've built to change its price, or sell it. Lay paths from Extras by clicking and dragging."},
 		{"Hire your troupe", "Open the Troupe to sign clowns, jugglers, acrobats, fire breathers and more. Better performers cost more and earn more each night."},
 	})
 	col(x+450, [][2]string{
 		{"Plan the show", "Click a tent and book acts into its lineup. Open with Laughs, mix it up, and close with Thrills for a big finish. The trapeze only fits in the Big Top."},
 		{"Showtime", "From 6 to 11 PM guests pay admission, watch shows, eat and explore. Each show tires the acts out, and tired acts flub, so swap them around."},
-		{"Keep guests happy", "Food and drink keep them going, benches rest them, light poles brighten dark corners and trash cans keep litter down. Happy guests bring bigger crowds."},
+		{"Keep guests happy", "Food and drink keep them going, benches rest them, light poles brighten dark corners and trash cans keep litter down. Guests walk faster on paths and stay out of the mud. Happy guests bring bigger crowds."},
 	})
 	p.text("Space: pause · 1-3: speed · Esc: cancel or menu · M: music · F11: full screen · Delete: sell", body(12, 500), x+430, y+500, alCenter, cMuted)
 	g.button(p, x+710, y+20, 120, 40, "Close", bGold, true, func() { g.back() })
@@ -269,43 +269,7 @@ func (g *game) drawResults(p pen) {
 		note = "A fine night under the canvas."
 	}
 	p.para(note, body(13, 400), lx, yy, 620, 18, cTan)
-	label := "On to Day " + itoa(r.Night+1)
-	fn := func() { s.Next() }
-	if r.Night >= s.Town.Nights {
-		label = "Strike the Tents & Roll Out"
-		fn = g.finishDemo
-	}
-	g.button(p, x+210, y+540, 300, 50, label, bRed, true, fn)
-}
-
-func (g *game) drawDone(p pen) {
-	s := g.sim
-	t := s.Totals()
-	x, y := g.dialog(p, 760, 620)
-	p.text("Demo Complete!", display(44), x+380, y+58, alCenter, cGold)
-	p.text("You played all three nights of opening week in "+s.Town.Name+".", body(15, 500), x+380, y+100, alCenter, cCream)
-	lx := x + 70
-	yy := y + 150
-	row := func(l, v string) {
-		p.text(l, body(15, 400), lx, yy, alLeft, cTan)
-		p.text(v, head(18), x+690, yy, alRight, cCream)
-		yy += 32
-	}
-	row("Guests over three nights", itoa(t.Guests))
-	row("Money taken in", money(t.Income()))
-	row("Final cash (you started with "+money(ct.StartCash)+")", money(s.Cash))
-	best := "–"
-	if t.ShowsRun > 0 {
-		best = itoa(t.ShowsRun) + " shows, best " + itoa(int(t.BestStars*10+0.5)/10) + "." + itoa(int(t.BestStars*10+0.5)%10) + " stars"
-	}
-	row("Shows performed", best)
-	row("Average guest happiness", itoa(int(t.AvgHappy))+"%")
-	p.text("Reputation", body(15, 400), lx, yy, alLeft, cTan)
-	stars(p, x+600, yy, 18, s.Rep)
-	yy += 44
-	p.para("The tents are down, the wagons are loaded and "+s.Town.Next+" is waiting. The full game takes your circus on tour: more towns, the Three-Ring Big Top, the Human Cannonball, star performers to train and a circus to grow. Thanks for playing the demo!", body(14, 400), lx, yy, 620, 21, cCream)
-	g.button(p, x+120, y+548, 250, 50, "Play Again", bRed, true, func() { g.newRun() })
-	g.button(p, x+390, y+548, 250, 50, "Main Menu", bDark, true, func() { g.screen = "title"; g.sim = nil })
+	g.button(p, x+210, y+540, 300, 50, "On to Day "+itoa(r.Night+1), bRed, true, func() { s.Next() })
 }
 
 func (g *game) drawBroke(p pen) {

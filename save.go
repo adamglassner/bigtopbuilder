@@ -18,6 +18,7 @@ type saveData struct {
 		Runs       int `json:"runs"`
 		Finished   int `json:"finished"`
 		Nights     int `json:"nights"`
+		BestNight  int `json:"bestNight"`
 		Guests     int `json:"guests"`
 		BestProfit int `json:"bestProfit"`
 		BestCash   int `json:"bestCash"`
@@ -93,7 +94,8 @@ var achievements = []achievement{
 	{"crowd", "Packed House", "Welcome 120 guests in a single night.", false},
 	{"pleaser", "Crowd Pleaser", "Finish a night with guests 80% happy or better.", false},
 	{"soldout", "Sold Out", "Take $1,200 in show tickets in one night.", false},
-	{"roadready", "Roll Out", "Finish all three nights of opening week in Brookhaven.", false},
+	{"roadready", "Opening Week", "Keep the circus running for three nights.", false},
+	{"longrun", "Held Over", "Keep the circus running for ten nights.", false},
 	{"mustgoon", "The Show Must Go On", "Have a tired act flub in front of the crowd.", true},
 }
 

@@ -67,7 +67,7 @@ func (g *game) drawLot(p pen) {
 	for y := 0; y < s.H; y++ {
 		for x := 0; x < s.W; x++ {
 			t := s.Traffic[y*s.W+x]
-			if t < 4 {
+			if t < 4 || s.Path[y*s.W+x] {
 				continue
 			}
 			k := math.Min(0.8, float64(t)/110)
@@ -75,6 +75,8 @@ func (g *game) drawLot(p pen) {
 			p.rrect(px-4, py-4, TS+8, TS+8, 18, withA(cDirt, k))
 		}
 	}
+	// laid paths
+	g.drawPaths(p)
 	// the gate tile is a dirt path
 	p.rect(gx, gy+4, TS*2, TS-8, mix(cDirt, cGrass, 0.2))
 	if s.Phase == ct.PhaseBuild || g.placing != nil {
@@ -151,6 +153,9 @@ func (g *game) drawAttraction(p pen, d *ct.Def, x, y float64, a *ct.Attraction) 
 		drawFortune(p, x, y, w, h, t)
 	case "popcorn", "cottoncandy", "hotdogs", "soda":
 		drawCart(p, d, x, y, w, h, t)
+	case "path":
+		drawPathTile(p, x, y, [4]bool{true, false, true, false}, 0, 0)
+		drawPathTile(p, x, y, [4]bool{true, false, true, false}, 0, 1)
 	case "bench":
 		p.ellipse(cx, by-2, 18, 4, cShadow)
 		p.rect(cx-17, by-16, 34, 5, cBrown)
@@ -398,6 +403,74 @@ func (g *game) drawBeams(p pen) {
 	}
 }
 
+var (
+	cPath   = hex(0xd8bd8e)
+	cPathDk = hex(0xa98a5c)
+)
+
+// drawPathTile draws one tile of path; join says which sides (right, left,
+// down, up) connect to the next path tile.
+// pass 0 draws the edging and pass 1 the gravel; every tile's edging goes
+// down before any gravel, so joins don't leave seams.
+func drawPathTile(p pen, x, y float64, join [4]bool, seed, pass int) {
+	in := 5.0
+	{
+		c := []color.RGBA{cPathDk, cPath}[pass]
+		e := 1.0 - float64(pass) // the edging sticks out 1px
+		p.rrect(x+in-e, y+in-e, TS-2*in+2*e, TS-2*in+2*e, 8+e, c)
+		if join[0] {
+			p.rect(x+TS/2, y+in-e, TS/2+1, TS-2*in+2*e, c)
+		}
+		if join[1] {
+			p.rect(x-1, y+in-e, TS/2+1, TS-2*in+2*e, c)
+		}
+		if join[2] {
+			p.rect(x+in-e, y+TS/2, TS-2*in+2*e, TS/2+1, c)
+		}
+		if join[3] {
+			p.rect(x+in-e, y-1, TS-2*in+2*e, TS/2+1, c)
+		}
+	}
+	if pass == 0 {
+		return
+	}
+	// a few pebbles
+	for k := 0; k < 4; k++ {
+		px := x + 10 + math.Mod(float64(seed*37+k*53), TS-20)
+		py := y + 10 + math.Mod(float64(seed*61+k*29), TS-20)
+		p.ellipse(px, py, 2.4, 1.6, withA(cPathDk, 0.7))
+	}
+}
+
+func (g *game) drawPaths(p pen) {
+	s := g.sim
+	for pass := 0; pass < 2; pass++ {
+		for y := 0; y < s.H; y++ {
+			for x := 0; x < s.W; x++ {
+				if !s.IsPath(x, y) {
+					continue
+				}
+				px, py := tilePx(float64(x), float64(y))
+				// paths join each other, and run into the gate
+				left := s.IsPath(x-1, y) || (x == 0 && y == s.GateY)
+				drawPathTile(p, px, py, [4]bool{s.IsPath(x+1, y), left, s.IsPath(x, y+1), s.IsPath(x, y-1)}, y*s.W+x, pass)
+			}
+		}
+	}
+	// paths that end at an entrance connect to it
+	for _, a := range s.Attr {
+		if !a.Def.Visitable() {
+			continue
+		}
+		ex, ey := a.Entrance()
+		if s.IsPath(ex, ey) {
+			px, py := tilePx(float64(ex), float64(ey))
+			p.rect(px+4, py-2, TS-8, 10, cPathDk)
+			p.rect(px+5, py-2, TS-10, 9, cPath)
+		}
+	}
+}
+
 // drawGhost shows what's about to be built under the mouse.
 func (g *game) drawGhost(p pen) {
 	d := g.placing
@@ -406,6 +479,27 @@ func (g *game) drawGhost(p pen) {
 	}
 	tx, ty, in := g.mouseTile()
 	if !in {
+		return
+	}
+	if d.ID == "path" {
+		px, py := tilePx(float64(tx), float64(ty))
+		col, label := withA(cMint, 0.4), ""
+		lift := (g.painting && !g.paintAdd) || (!g.painting && g.sim.IsPath(tx, ty))
+		switch {
+		case lift && g.sim.IsPath(tx, ty):
+			col, label = withA(cGold, 0.45), "Pick up path +"+money(ct.PathCost)
+		case lift:
+			col = withA(cGold, 0.2)
+		case g.sim.CanPlace(d, tx, ty) != nil:
+			col = withA(cRed, 0.4)
+		}
+		p.rect(px+1, py+1, TS-2, TS-2, col)
+		if label != "" && !g.painting {
+			f := body(12, 600)
+			w := textW(label, f) + 20
+			p.rrect(g.mx-w/2, g.my-46, w, 24, 8, withA(cNight, 0.9))
+			p.text(label, f, g.mx, g.my-34, alCenter, cGold)
+		}
 		return
 	}
 	x0, y0 := tx-d.W/2, ty-d.H/2

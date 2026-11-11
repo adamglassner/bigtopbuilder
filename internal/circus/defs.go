@@ -71,6 +71,8 @@ var Defs = []*Def{
 		Blurb: "Ice-cold sarsaparilla and orange fizz."},
 
 	// Extras
+	{ID: "path", Name: "Path", Cat: CatExtra, W: 1, H: 1, Cost: PathCost,
+		Blurb: "Click and drag to lay a path. Guests take paths when they can, walk faster on them and stay out of the mud. Drag over a path to pick it up again."},
 	{ID: "bench", Name: "Bench", Cat: CatExtra, W: 1, H: 1, Cost: 80, Capacity: 2, Cycle: 7, Rest: 55, QueueMax: 2,
 		Blurb: "Tired guests sit down and stay longer."},
 	{ID: "trash", Name: "Trash Can", Cat: CatExtra, W: 1, H: 1, Cost: 60,
@@ -131,16 +133,15 @@ func ActByID(id string) *ActDef {
 	return nil
 }
 
-// Town is where the circus is set up. The demo has one; the full game goes on tour.
+// Town is where the circus is set up. The demo has one, and you can stay as
+// many nights as you like; the full game goes on tour.
 type Town struct {
-	Name   string
-	Nights int
-	W, H   int
-	Rep    float64 // the town's starting opinion of you
-	Next   string  // where the wagons go after the demo
+	Name string
+	W, H int
+	Rep  float64 // the town's starting opinion of you
 }
 
-var DemoTown = Town{Name: "Brookhaven", Nights: 3, W: 24, H: 14, Rep: 2.5, Next: "Millbrook"}
+var DemoTown = Town{Name: "Brookhaven", W: 24, H: 14, Rep: 2.5}
 
 const (
 	StartCash    = 9000
@@ -153,4 +154,6 @@ const (
 	TiredAt      = 35.0 // below this an act may flub
 	ForHire      = 5    // performers looking for work each morning
 	MaxTroupe    = 12
+	PathCost     = 15
+	BrokeAt      = -1500 // below this cash after a night, the circus folds
 )

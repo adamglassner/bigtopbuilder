@@ -6,14 +6,17 @@ Open Big Top Builder from the Start menu (Ironite folder), your desktop,
 or Ironite Launcher. Or just double-click BigTopBuilder.exe.
 
 THE DEMO
-You run a traveling circus. Play opening week, three nights in
-Brookhaven, then strike the tents and roll out. The full game takes you
+You run a circus in Brookhaven. Keep it going for as many nights as you
+like: the run only ends if you run out of money. The full game takes you
 on tour.
 
 HOW TO PLAY
 - Daytime: pick a tent, sideshow, food cart or extra from the bar at the
   bottom and click the grounds to build it. Guests line up at the gold
   square in front of it.
+- Paths: pick Path from Extras, then click and drag to lay them. Guests
+  prefer paths, walk faster on them and stay out of the mud. Drag over a
+  path to pick it up again.
 - Troupe: open the Troupe to hire performers. You start with a clown and
   a juggler. New performers look for work every morning.
 - Shows: click a tent and book acts into its lineup. Open with Laughs,

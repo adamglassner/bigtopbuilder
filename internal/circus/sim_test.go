@@ -114,7 +114,7 @@ func TestPacing(t *testing.T) {
 	_ = tired
 }
 
-func TestThreeNights(t *testing.T) {
+func TestNightsGoOn(t *testing.T) {
 	s := New(42)
 	ring := build(t, s, "ringtent", 4, 2)
 	s.Book(s.Troupe[0], ring, 0)
@@ -124,7 +124,10 @@ func TestThreeNights(t *testing.T) {
 	build(t, s, "funhouse", 16, 3)
 	build(t, s, "lamp", 9, 9)
 	build(t, s, "trash", 12, 10)
-	for night := 1; night <= 3; night++ {
+	for night := 1; night <= 6; night++ {
+		if s.Night != night || s.Phase != PhaseBuild {
+			t.Fatalf("expected the morning of night %d, got night %d phase %v", night, s.Night, s.Phase)
+		}
 		if err := s.OpenGates(); err != nil {
 			t.Fatal(err)
 		}
@@ -135,14 +138,71 @@ func TestThreeNights(t *testing.T) {
 			t.Fatalf("night %d never ended", night)
 		}
 		r := s.Reports[len(s.Reports)-1]
-		t.Logf("night %d: %d guests, %d shows avg %.1f stars, flubs %d, profit %d, happy %.0f, rep %.2f", night, r.Guests, r.ShowsRun, r.AvgStars(), r.Flubs, r.Profit(), r.AvgHappy, r.RepAfter)
+		t.Logf("night %d: %d guests, %d shows avg %.1f stars, flubs %d, profit %d, happy %.0f, rep %.2f, cash %d", night, r.Guests, r.ShowsRun, r.AvgStars(), r.Flubs, r.Profit(), r.AvgHappy, r.RepAfter, s.Cash)
 		if r.Guests < 20 || r.ShowsRun < 3 || r.Shows == 0 {
 			t.Fatalf("night %d too quiet: %+v", night, r)
 		}
 		s.Next()
 	}
-	if s.Phase != PhaseDone {
+}
+
+func TestBrokeEndsTheRun(t *testing.T) {
+	s := New(7)
+	ring := build(t, s, "ringtent", 4, 2)
+	s.Book(s.Troupe[0], ring, 0)
+	s.OpenGates()
+	for s.Phase == PhaseNight {
+		s.Update(0.1)
+	}
+	s.Cash = BrokeAt - 1
+	s.Next()
+	if s.Phase != PhaseBroke {
 		t.Fatalf("phase %v", s.Phase)
+	}
+}
+
+func TestPaths(t *testing.T) {
+	s := New(11)
+	start := s.Cash
+	if err := s.LayPath(5, 5); err != nil {
+		t.Fatal(err)
+	}
+	if s.LayPath(5, 5) != ErrPathHere || s.Cash != start-PathCost {
+		t.Fatal("one path per tile")
+	}
+	if !s.LiftPath(5, 5) || s.Cash != start || s.IsPath(5, 5) {
+		t.Fatal("lifting a path refunds it")
+	}
+	// a building can go over a path, and takes it up
+	s.LayPath(10, 4)
+	a := build(t, s, "popcorn", 10, 3)
+	if s.IsPath(10, 4) || a == nil {
+		t.Fatal("building should take up the path")
+	}
+	if s.LayPath(10, 4) != ErrSpace {
+		t.Fatal("no paths under buildings")
+	}
+
+	// A path along the line from (2,2) to (2,8) makes it the cheapest way there.
+	f := s.flow(s.idx(2, 8))
+	grass := f[s.idx(2, 2)]
+	for y := 2; y <= 8; y++ {
+		s.LayPath(2, y)
+	}
+	f = s.flow(s.idx(2, 8))
+	if f[s.idx(2, 2)] >= grass {
+		t.Fatalf("path route should be cheaper: %d vs %d", f[s.idx(2, 2)], grass)
+	}
+	// from (3,2), stepping left onto the path should be a valid first step
+	cur := s.idx(3, 2)
+	ok := false
+	for _, n := range []int{s.idx(2, 2), s.idx(3, 3)} {
+		if f[n]+s.stepCost(n) == f[cur] && n == s.idx(2, 2) {
+			ok = true
+		}
+	}
+	if !ok {
+		t.Fatalf("guests should head for the path: f(3,2)=%d f(2,2)=%d", f[cur], f[s.idx(2, 2)])
 	}
 }
 

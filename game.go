@@ -40,7 +40,10 @@ type game struct {
 	placing  *ct.Def
 	sel      *ct.Attraction
 	selGuest *ct.Guest
-	slotPick int // tent slot being booked in the inspector (-1 = none)
+	slotPick int  // tent slot being booked in the inspector (-1 = none)
+	painting bool // dragging to lay (or lift) paths
+	paintAdd bool // true = laying paths, false = picking them up
+	paintAt  [2]int
 
 	hits     []hit
 	dragging func(mx float64)
@@ -152,7 +155,19 @@ func (g *game) applyTestQuery(q string) {
 			g.sel, g.slotPick = tents[0], 4
 		}
 	}
-	if has("night") || has("results") || has("done") {
+	if has("paths") {
+		s.Cash += 5000
+		for x := 1; x < 23; x++ {
+			s.LayPath(x, 7)
+		}
+		for y := 1; y < 13; y++ {
+			s.LayPath(12, y)
+			s.LayPath(6, y)
+			s.LayPath(18, y)
+		}
+		s.Cash -= 5000
+	}
+	if has("night") || has("results") {
 		s.OpenGates()
 		target := 0.55
 		if has("late") {
@@ -168,22 +183,11 @@ func (g *game) applyTestQuery(q string) {
 			}
 		}
 	}
-	if has("results") || has("done") {
+	if has("results") {
 		for s.Phase == ct.PhaseNight {
 			s.Update(0.1)
 		}
 		s.Events = nil
-	}
-	if has("done") {
-		for s.Phase != ct.PhaseDone {
-			s.Next()
-			if s.Phase == ct.PhaseBuild {
-				s.OpenGates()
-				for s.Phase == ct.PhaseNight {
-					s.Update(0.1)
-				}
-			}
-		}
 	}
 	if has("place") {
 		g.placing = ct.DefByID("ringtent")
@@ -321,6 +325,14 @@ func (g *game) keys() {
 }
 
 func (g *game) mouse() {
+	if g.painting {
+		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && g.placing != nil {
+			g.paintPath()
+			return
+		}
+		g.painting = false
+		return
+	}
 	if g.dragging != nil {
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 			g.dragging(g.mx)
@@ -362,6 +374,13 @@ func (g *game) clickWorld() {
 			return
 		}
 		d := g.placing
+		if d.ID == "path" {
+			g.painting = true
+			g.paintAdd = !s.IsPath(tx, ty)
+			g.paintAt = [2]int{-1, -1}
+			g.paintPath()
+			return
+		}
 		a, err := s.Place(d, tx-d.W/2, ty-d.H/2)
 		if err != nil {
 			snd.play("error")
@@ -410,6 +429,28 @@ func (g *game) clickWorld() {
 		return
 	}
 	g.sel, g.selGuest = nil, nil
+}
+
+// paintPath lays (or lifts) a path on the tile under the mouse while dragging.
+func (g *game) paintPath() {
+	s := g.sim
+	tx, ty, in := g.mouseTile()
+	if !in || g.paintAt == [2]int{tx, ty} {
+		return
+	}
+	g.paintAt = [2]int{tx, ty}
+	x, y := tilePx(float64(tx)+.5, float64(ty))
+	if g.paintAdd {
+		if s.LayPath(tx, ty) == nil {
+			snd.play("tab")
+			g.floaters = append(g.floaters, floater{x: x, y: y, text: "-" + money(ct.PathCost)})
+		}
+		return
+	}
+	if s.LiftPath(tx, ty) {
+		snd.play("tab")
+		g.floaters = append(g.floaters, floater{x: x, y: y, text: "+" + money(ct.PathCost), good: true})
+	}
 }
 
 func (g *game) sellSelected() {
@@ -511,6 +552,12 @@ func (g *game) onResults() {
 	snd.play("close")
 	g.sel, g.selGuest, g.placing, g.slotPick = nil, nil, nil, -1
 	g.save.Stats.Nights++
+	if r.Night > g.save.Stats.BestNight {
+		g.save.Stats.BestNight = r.Night
+	}
+	if s.Cash > g.save.Stats.BestCash {
+		g.save.Stats.BestCash = s.Cash
+	}
 	g.save.Stats.Guests += r.Guests
 	if r.Profit() > g.save.Stats.BestProfit {
 		g.save.Stats.BestProfit = r.Profit()
@@ -525,21 +572,12 @@ func (g *game) onResults() {
 	if r.Shows >= 1200 {
 		g.unlock("soldout")
 	}
-}
-
-// finishDemo is called when the player tears down after the last night.
-func (g *game) finishDemo() {
-	s := g.sim
-	s.Next()
-	if s.Phase == ct.PhaseDone {
-		g.save.Stats.Finished++
-		if s.Cash > g.save.Stats.BestCash {
-			g.save.Stats.BestCash = s.Cash
-		}
+	if r.Night >= 3 {
 		g.unlock("roadready")
-		snd.play("fanfare")
 	}
-	g.persist()
+	if r.Night >= 10 {
+		g.unlock("longrun")
+	}
 }
 
 func (g *game) Draw(screen *ebiten.Image) {

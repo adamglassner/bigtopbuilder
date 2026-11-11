@@ -3,6 +3,16 @@
 All notable changes to Big Top Builder are recorded here.
 Versions follow Semantic Versioning (MAJOR.MINOR.PATCH). Versions before 1.0.0 are the free demo.
 
+## [0.2.0] - 2026-11-11
+
+### Added
+- Paths. Pick Path from Extras ($15 a tile), then click and drag across the grounds to lay them. Paths join up with each other, the gate and the entrances. Guests take them whenever they can, walk faster on them and stay out of the mud when it rains. Drag over a path to pick it up again for a full refund, and anything built on a path takes it up.
+- Endless nights: the circus no longer packs up after three nights. Keep it running in Brookhaven as long as you like; the run only ends if you run out of money. The title screen shows your longest run.
+- New achievement: Held Over, for keeping the circus running for ten nights. Opening Week (formerly Roll Out) now unlocks after your third night.
+
+### Removed
+- The Demo Complete screen after the third night.
+
 ## [0.1.1] - 2026-11-11
 
 ### Changed

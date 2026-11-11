@@ -12,7 +12,6 @@ const (
 	PhaseBuild   Phase = iota // daytime: build, hire and plan the shows
 	PhaseNight                // showtime: the gates are open
 	PhaseResults              // the night's takings
-	PhaseDone                 // the demo's three nights are over
 	PhaseBroke                // ran out of money
 )
 
@@ -81,13 +80,13 @@ type Sim struct {
 	Troupe   []*Performer
 	Hireable []*Performer
 
-	Weather  Weather
-	Forecast []Weather
+	Weather Weather
 
 	Report  NightReport
 	Reports []NightReport
 	Events  []Event
 
+	Path    []bool // tiles with a path laid
 	Litter  []uint8
 	Traffic []float32 // footsteps per tile; worn grass
 	Lit     []float32 // how lit each tile is at night (0-1)
@@ -113,17 +112,13 @@ func New(seed int64) *Sim {
 	s := &Sim{Town: t, W: t.W, H: t.H, Rand: rand.New(rand.NewSource(seed)), Night: 1, Cash: StartCash, Rep: t.Rep, Gate: DefaultGate}
 	n := s.W * s.H
 	s.grid = make([]int, n)
+	s.Path = make([]bool, n)
 	s.Litter = make([]uint8, n)
 	s.Traffic = make([]float32, n)
 	s.Lit = make([]float32, n)
 	s.trashNear = make([]bool, n)
 	s.GateX, s.GateY = 0, s.H/2
-	s.Forecast = make([]Weather, t.Nights)
-	for i := range s.Forecast {
-		s.Forecast[i] = []Weather{Clear, Clear, Breezy, Drizzle}[s.Rand.Intn(4)]
-	}
-	s.Forecast[0] = Clear // a gentle first night
-	s.Weather = s.Forecast[0]
+	s.Weather = Clear // a gentle first night
 	for _, id := range []string{"clown", "juggler"} {
 		p := s.newPerformer(ActByID(id), s.Rand)
 		p.Skill = 0.95 + s.Rand.Float64()*0.1
@@ -158,21 +153,35 @@ func (s *Sim) AttrAt(x, y int) *Attraction {
 /* ---------- building ---------- */
 
 var (
-	ErrLocked  = errors.New("Coming in the full game")
-	ErrCash    = errors.New("Not enough cash")
-	ErrSpace   = errors.New("Something's in the way")
-	ErrEdge    = errors.New("Off the edge of the grounds")
-	ErrBlocks  = errors.New("That would block the way through")
-	ErrGateway = errors.New("Keep the gate clear")
-	ErrDoor    = errors.New("Keep entrances clear")
-	ErrNoShow  = errors.New("Build a tent and book at least one act first")
-	ErrOnlyOne = errors.New("You can only raise one Big Top")
+	ErrLocked   = errors.New("Coming in the full game")
+	ErrCash     = errors.New("Not enough cash")
+	ErrSpace    = errors.New("Something's in the way")
+	ErrEdge     = errors.New("Off the edge of the grounds")
+	ErrBlocks   = errors.New("That would block the way through")
+	ErrGateway  = errors.New("Keep the gate clear")
+	ErrDoor     = errors.New("Keep entrances clear")
+	ErrNoShow   = errors.New("Build a tent and book at least one act first")
+	ErrOnlyOne  = errors.New("You can only raise one Big Top")
+	ErrPathHere = errors.New("There's already a path here")
 )
 
 // CanPlace checks whether def fits with its top-left tile at (x, y).
 func (s *Sim) CanPlace(d *Def, x, y int) error {
 	if d.Locked {
 		return ErrLocked
+	}
+	if d.ID == "path" {
+		switch {
+		case !s.in(x, y):
+			return ErrEdge
+		case !s.Free(x, y):
+			return ErrSpace
+		case s.Path[s.idx(x, y)]:
+			return ErrPathHere
+		case s.Cash < d.Cost:
+			return ErrCash
+		}
+		return nil
 	}
 	if d.ID == "bigtop" {
 		for _, a := range s.Attr {
@@ -242,6 +251,9 @@ func (s *Sim) allReachable() bool {
 
 // Place builds def at (x, y).
 func (s *Sim) Place(d *Def, x, y int) (*Attraction, error) {
+	if d.ID == "path" {
+		return nil, s.LayPath(x, y)
+	}
 	if err := s.CanPlace(d, x, y); err != nil {
 		return nil, err
 	}
@@ -252,6 +264,11 @@ func (s *Sim) Place(d *Def, x, y int) (*Attraction, error) {
 	}
 	s.Attr = append(s.Attr, a)
 	s.stamp(d, x, y, a.ID)
+	for ty := y; ty < y+d.H; ty++ { // building over a path takes it up
+		for tx := x; tx < x+d.W; tx++ {
+			s.Path[s.idx(tx, ty)] = false
+		}
+	}
 	s.Cash -= d.Cost
 	s.layoutChanged()
 	s.unstickGuests()
@@ -289,6 +306,33 @@ func (s *Sim) Sell(a *Attraction) int {
 	s.Cash += back
 	s.layoutChanged()
 	return back
+}
+
+// IsPath reports whether a path is laid on a tile.
+func (s *Sim) IsPath(x, y int) bool { return s.in(x, y) && s.Path[s.idx(x, y)] }
+
+// LayPath lays a path on one tile.
+func (s *Sim) LayPath(x, y int) error {
+	if err := s.CanPlace(DefByID("path"), x, y); err != nil {
+		return err
+	}
+	s.Path[s.idx(x, y)] = true
+	s.Cash -= PathCost
+	s.flows = map[int][]int16{}
+	s.Version++
+	return nil
+}
+
+// LiftPath picks a path up again, for what it cost.
+func (s *Sim) LiftPath(x, y int) bool {
+	if !s.IsPath(x, y) {
+		return false
+	}
+	s.Path[s.idx(x, y)] = false
+	s.Cash += PathCost
+	s.flows = map[int][]int16{}
+	s.Version++
+	return true
 }
 
 func (s *Sim) SetPrice(a *Attraction, p int) {
@@ -391,11 +435,55 @@ func (s *Sim) bfs(from int) []int16 {
 	return d
 }
 
+// stepCost is what it costs to walk onto a tile: guests go a little out of
+// their way to stay on a path.
+func (s *Sim) stepCost(i int) int16 {
+	if s.Path[i] {
+		return 2
+	}
+	return 3
+}
+
+// flow is the walking cost from every tile to `target` (-1 = can't get
+// there). A guest on tile i steps to a neighbour n where
+// flow[n] + stepCost(n) == flow[i].
 func (s *Sim) flow(target int) []int16 {
 	if f, ok := s.flows[target]; ok {
 		return f
 	}
-	f := s.bfs(target)
+	f := make([]int16, len(s.grid))
+	for i := range f {
+		f[i] = -1
+	}
+	f[target] = 0
+	buckets := [][]int{{target}}
+	for d := 0; d < len(buckets); d++ {
+		for k := 0; k < len(buckets[d]); k++ {
+			i := buckets[d][k]
+			if int(f[i]) != d {
+				continue // already reached more cheaply
+			}
+			x, y := i%s.W, i/s.W
+			for _, n := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+				nx, ny := x+n[0], y+n[1]
+				if !s.in(nx, ny) {
+					continue
+				}
+				j := s.idx(nx, ny)
+				if s.grid[j] != 0 {
+					continue
+				}
+				nd := f[i] + s.stepCost(i)
+				if f[j] < 0 || nd < f[j] {
+					f[j] = nd
+					for len(buckets) <= int(nd) {
+						buckets = append(buckets, nil)
+					}
+					buckets[nd] = append(buckets[nd], j)
+				}
+			}
+		}
+	}
 	s.flows[target] = f
 	return f
 }
@@ -618,16 +706,12 @@ func (s *Sim) Next() {
 	if s.Phase != PhaseResults {
 		return
 	}
-	if s.Cash < -1500 {
+	if s.Cash < BrokeAt {
 		s.Phase = PhaseBroke
 		return
 	}
-	if s.Night >= s.Town.Nights {
-		s.Phase = PhaseDone
-		return
-	}
 	s.Night++
-	s.Weather = s.Forecast[s.Night-1]
+	s.Weather = []Weather{Clear, Clear, Breezy, Drizzle}[s.Rand.Intn(4)]
 	s.Report = NightReport{}
 	for _, p := range s.Troupe {
 		p.Energy = 100 // a good night's sleep

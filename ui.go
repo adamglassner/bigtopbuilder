@@ -138,8 +138,6 @@ func (g *game) drawPlay(p pen) {
 	switch s.Phase {
 	case ct.PhaseResults:
 		g.drawResults(p)
-	case ct.PhaseDone:
-		g.drawDone(p)
 	case ct.PhaseBroke:
 		g.drawBroke(p)
 	}
@@ -155,8 +153,8 @@ func (g *game) drawHUD(p pen) {
 	p.rrect(180, 14, 52, 20, 5, cRed)
 	p.text("DEMO", head(12), 206, 24, alCenter, cCream)
 
-	p.text(s.Town.Name+" · Opening Week", body(14, 700), 252, 22, alLeft, cCream)
-	sub := "Night " + itoa(s.Night) + " of " + itoa(s.Town.Nights)
+	p.text(s.Town.Name, body(14, 700), 252, 22, alLeft, cCream)
+	sub := "Night " + itoa(s.Night)
 	switch s.Phase {
 	case ct.PhaseBuild:
 		sub += " · Daytime: build, hire and plan the shows"
@@ -527,7 +525,9 @@ func (g *game) drawBuildBar(p pen) {
 		}
 		ny += 4
 	}
-	if g.placing != nil {
+	if g.placing != nil && g.placing.ID == "path" {
+		p.text("Click and drag to lay paths, or drag over a path to pick it up · Esc to stop", body(12, 600), nx, y0+146, alLeft, cGold)
+	} else if g.placing != nil {
 		p.text("Click the grounds to build · Right-click or Esc to cancel", body(12, 600), nx, y0+146, alLeft, cGold)
 	}
 	// the big button

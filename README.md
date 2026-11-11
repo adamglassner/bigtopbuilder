@@ -2,13 +2,15 @@
 
 A circus management sim by Ironite, written in Go with [Ebitengine](https://ebitengine.org).
 Raise the tents, hire the troupe, plan each show's running order and keep the crowd cheering from 6 to
-11 PM. This is the free demo: opening week, three nights in Brookhaven. It ships on its own and inside the
+11 PM. This is the free demo: run your circus in Brookhaven for as many nights as you like. It ships on its own and inside the
 [Ironite Launcher](https://github.com/adamglassner/launcher), where it's listed under Simulation as a DEMO.
 
 ## How to play
 
 - **Daytime:** pick something from the bar at the bottom and click the grounds to build it. Guests line
-  up at the gold square in front. Click anything you've built to set its price or sell it.
+  up at the gold square in front. Click anything you've built to set its price or sell it. Pick **Path**
+  from Extras and click and drag to lay paths; guests prefer them, walk faster on them and stay out of the
+  mud. Drag over a path to pick it up.
 - **The troupe:** open **Troupe** to hire clowns, stilt walkers, jugglers, strongwomen, acrobats, fire
   breathers and trapeze artists. You start with a clown and a juggler; new faces turn up every morning.
 - **Plan the shows:** click a tent and book acts into its lineup (three in a Ring Tent, five in the Big
@@ -16,7 +18,7 @@ Raise the tents, hire the troupe, plan each show's running order and keep the cr
   don't put two acts of the same kind back to back, and close with Thrills. The trapeze needs the Big Top.
 - **Showtime:** press **Open the Gates**. Tents wait for an audience, then put on the show act by act.
   Every show tires the acts out and tired acts can flub, so swap them around. Space pauses; 1, 2 and 3 set
-  the speed.
+  the speed. Nights go on as long as you like; the run ends only if you go broke.
 - Esc cancels or opens the menu, M toggles music, F11 toggles full screen, Delete sells what's selected.
 
 Settings, records and achievements are kept in `%APPDATA%\Ironite\BigTopBuilder\save.json`, and the
