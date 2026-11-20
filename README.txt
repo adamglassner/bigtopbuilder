@@ -30,6 +30,10 @@ HOW TO PLAY
 - Keep guests happy: food and drink for hunger and thirst, benches for
   tired feet, light poles for dark corners, and trash cans to keep the
   litter down. Happy guests bring bigger crowds.
+- Grounds crew sweep up litter, posters bring a bigger crowd, and
+  decorations cheer guests up. Acts get better with every clean show.
+- Your circus saves itself through every morning. Use Continue on the
+  title screen to pick up where you left off.
 - Esc = cancel / menu, M = music on/off, F11 = full screen,
   Delete = sell what's selected.
 

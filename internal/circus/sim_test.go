@@ -232,3 +232,139 @@ func TestFullBigTopIsProfitable(t *testing.T) {
 		t.Fatalf("a full bill should pay for its night: cash %d -> %d", start, s.Cash)
 	}
 }
+
+func TestSaveAndRestore(t *testing.T) {
+	s := New(5)
+	s.Cash = 50000
+	big := build(t, s, "threering", 6, 2)
+	build(t, s, "cannon", 14, 3)
+	build(t, s, "statue", 3, 9)
+	build(t, s, "flowers", 4, 9)
+	s.LayPath(2, 7)
+	s.LayPath(3, 7)
+	tr := hire(t, s, "trapeze")
+	s.Book(tr, big, 6)
+	s.Book(s.Troupe[0], big, 0)
+	if err := s.HireSweeper(); err != nil {
+		t.Fatal(err)
+	}
+	s.BuyPosters()
+	b, err := s.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n, _, ok := SavedNight(b); !ok || n != 1 {
+		t.Fatal("peek")
+	}
+	r, err := Restore(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Cash != s.Cash || len(r.Attr) != 4 || len(r.Troupe) != 3 || len(r.Crew) != 1 || !r.Posters || !r.IsPath(3, 7) {
+		t.Fatalf("restored: cash %d attr %d troupe %d crew %d", r.Cash, len(r.Attr), len(r.Troupe), len(r.Crew))
+	}
+	var rb *Attraction
+	for _, a := range r.Attr {
+		if a.Def.ID == "threering" {
+			rb = a
+		}
+	}
+	if rb == nil || rb.Lineup[6] == nil || rb.Lineup[6].Name != tr.Name || rb.Lineup[0] == nil || rb.Booked() != 2 {
+		t.Fatal("lineup not restored")
+	}
+	if _, err := r.Place(DefByID("cannon"), 1, 1); err != ErrOnlyOne {
+		t.Fatalf("restored layout should block a second cannon: %v", err)
+	}
+	// and it still plays
+	r.OpenGates()
+	for r.Phase == PhaseNight {
+		r.Update(0.1)
+	}
+	if r.Reports[0].Guests == 0 {
+		t.Fatal("no guests after restore")
+	}
+}
+
+func TestCrewSweepsLitter(t *testing.T) {
+	run := func(crew int) int {
+		s := New(21)
+		ring := build(t, s, "ringtent", 4, 2)
+		s.Book(s.Troupe[0], ring, 0)
+		s.Book(s.Troupe[1], ring, 1)
+		build(t, s, "popcorn", 10, 3)
+		build(t, s, "hotdogs", 13, 3)
+		for i := 0; i < crew; i++ {
+			s.HireSweeper()
+		}
+		s.OpenGates()
+		for s.Phase == PhaseNight {
+			s.Update(0.1)
+		}
+		r := s.Reports[0]
+		t.Logf("crew %d: litter left %d, swept %d, happy %.0f", crew, r.Litter, r.Swept, r.AvgHappy)
+		return r.Litter
+	}
+	if a, b := run(0), run(2); b >= a || b > 10 {
+		t.Fatalf("sweepers should clear litter: %d without, %d with", a, b)
+	}
+}
+
+func TestPostersAndPractice(t *testing.T) {
+	night := func(posters bool) (int, *Performer) {
+		s := New(33)
+		ring := build(t, s, "ringtent", 4, 2)
+		s.Book(s.Troupe[0], ring, 0)
+		s.Book(s.Troupe[1], ring, 1)
+		if posters {
+			if err := s.BuyPosters(); err != nil {
+				t.Fatal(err)
+			}
+			if s.BuyPosters() != ErrPosters {
+				t.Fatal("posters twice")
+			}
+		}
+		skill := s.Troupe[0].Skill
+		s.OpenGates()
+		for s.Phase == PhaseNight {
+			s.Update(0.1)
+		}
+		if s.Troupe[0].Skill <= skill {
+			t.Fatal("acts should improve with practice")
+		}
+		return s.Reports[0].Guests, s.Troupe[0]
+	}
+	a, _ := night(false)
+	b, _ := night(true)
+	t.Logf("guests: %d without posters, %d with", a, b)
+	if b <= a {
+		t.Fatal("posters should bring a bigger crowd")
+	}
+}
+
+func TestDecorationsCheerGuests(t *testing.T) {
+	run := func(decor bool) float64 {
+		s := New(44)
+		s.Cash = 20000
+		ring := build(t, s, "ringtent", 4, 2)
+		s.Book(s.Troupe[0], ring, 0)
+		s.Book(s.Troupe[1], ring, 1)
+		if decor {
+			for _, d := range []struct {
+				id   string
+				x, y int
+			}{{"statue", 3, 8}, {"flowers", 5, 8}, {"flowers", 2, 5}, {"arch", 8, 8}} {
+				build(t, s, d.id, d.x, d.y)
+			}
+		}
+		s.OpenGates()
+		for s.Phase == PhaseNight {
+			s.Update(0.1)
+		}
+		return s.Reports[0].AvgHappy
+	}
+	a, b := run(false), run(true)
+	t.Logf("happiness %.1f without decorations, %.1f with", a, b)
+	if b <= a {
+		t.Fatal("decorations should cheer guests up")
+	}
+}

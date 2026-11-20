@@ -43,7 +43,8 @@ type NightReport struct {
 	Sideshows, Food      int
 	Goods, Wages, Hiring int
 	Upkeep, Cleanup      int
-	Litter               int
+	Litter, Swept        int
+	Posters              int
 	AvgHappy             float64
 	RepBefore, RepAfter  float64
 	PeakGuests           int
@@ -52,7 +53,9 @@ type NightReport struct {
 }
 
 func (r NightReport) Income() int { return r.Admissions + r.Shows + r.Sideshows + r.Food }
-func (r NightReport) Costs() int  { return r.Goods + r.Wages + r.Upkeep + r.Cleanup + r.Hiring }
+func (r NightReport) Costs() int {
+	return r.Goods + r.Wages + r.Upkeep + r.Cleanup + r.Hiring + r.Posters
+}
 func (r NightReport) Profit() int { return r.Income() - r.Costs() }
 
 // AvgStars is the average rating of tonight's shows.
@@ -79,6 +82,9 @@ type Sim struct {
 
 	Troupe   []*Performer
 	Hireable []*Performer
+	Crew     []*Sweeper
+
+	Posters bool // posters are up around town for tonight
 
 	Weather Weather
 
@@ -95,6 +101,7 @@ type Sim struct {
 
 	grid      []int // attraction ID per tile, 0 = free
 	trashNear []bool
+	decoNear  [][]int // decoration IDs close enough to each tile to cheer guests
 	flows     map[int][]int16
 	nextID    int
 	nextPerf  int
@@ -117,6 +124,7 @@ func New(seed int64) *Sim {
 	s.Traffic = make([]float32, n)
 	s.Lit = make([]float32, n)
 	s.trashNear = make([]bool, n)
+	s.decoNear = make([][]int, n)
 	s.GateX, s.GateY = 0, s.H/2
 	s.Weather = Clear // a gentle first night
 	for _, id := range []string{"clown", "juggler"} {
@@ -161,7 +169,9 @@ var (
 	ErrGateway  = errors.New("Keep the gate clear")
 	ErrDoor     = errors.New("Keep entrances clear")
 	ErrNoShow   = errors.New("Build a tent and book at least one act first")
-	ErrOnlyOne  = errors.New("You can only raise one Big Top")
+	ErrOnlyOne  = errors.New("You can only build one of those")
+	ErrPosters  = errors.New("The posters are already up for tonight")
+	ErrCrewFull = errors.New("Your grounds crew is full")
 	ErrPathHere = errors.New("There's already a path here")
 )
 
@@ -183,7 +193,7 @@ func (s *Sim) CanPlace(d *Def, x, y int) error {
 		}
 		return nil
 	}
-	if d.ID == "bigtop" {
+	if d.ID == "bigtop" || d.ID == "threering" || d.ID == "cannon" {
 		for _, a := range s.Attr {
 			if a.Def == d {
 				return ErrOnlyOne
@@ -347,6 +357,7 @@ func (s *Sim) layoutChanged() {
 	for i := range s.Lit {
 		s.Lit[i] = 0
 		s.trashNear[i] = false
+		s.decoNear[i] = nil
 	}
 	light := func(cx, cy, r float64) {
 		for y := 0; y < s.H; y++ {
@@ -363,6 +374,16 @@ func (s *Sim) layoutChanged() {
 		cx, cy := a.Center()
 		if a.Def.Light > 0 {
 			light(cx, cy, a.Def.Light+float64(a.Def.W)/2)
+		}
+		if a.Def.Charm > 0 {
+			for y := 0; y < s.H; y++ {
+				for x := 0; x < s.W; x++ {
+					if math.Hypot(float64(x)+.5-cx, float64(y)+.5-cy) <= CharmRadius+float64(a.Def.W)/2 {
+						i := s.idx(x, y)
+						s.decoNear[i] = append(s.decoNear[i], a.ID)
+					}
+				}
+			}
 		}
 		if a.Def.ID == "trash" {
 			for y := 0; y < s.H; y++ {
@@ -507,7 +528,7 @@ func (s *Sim) Wages() int {
 	for _, p := range s.Troupe {
 		w += p.Wage()
 	}
-	return w
+	return w + len(s.Crew)*SweeperWage
 }
 
 // OpenGates starts the night.
@@ -523,8 +544,9 @@ func (s *Sim) OpenGates() error {
 	s.closing = false
 	s.spawnAcc = 0
 	s.happySum, s.departed = 0, 0
-	hiring := s.Report.Hiring
-	s.Report = NightReport{Night: s.Night, Weather: s.Weather, RepBefore: s.Rep, Hiring: hiring}
+	keep := s.Report // hiring and posters bought this morning count tonight
+	s.Report = NightReport{Night: s.Night, Weather: s.Weather, RepBefore: s.Rep, Hiring: keep.Hiring, Posters: keep.Posters}
+	s.crewToGate()
 	for _, a := range s.Attr {
 		a.Night = AttrStats{}
 	}
@@ -545,6 +567,8 @@ func (s *Sim) appeal() float64 {
 			v += 0.12
 		case CatFood:
 			v += 0.07
+		case CatExtra:
+			v += a.Def.Charm * 0.004
 		}
 	}
 	return clamp(v, 0.2, 1.7)
@@ -561,7 +585,11 @@ func (s *Sim) SpawnRate() float64 {
 	}
 	w := []float64{1, 0.9, 0.62}[s.Weather]
 	gate := clamp(1.3-float64(s.Gate)/9, 0.25, 1.3)
-	return 0.62 * (0.45 + s.Rep/4.5) * s.appeal() * w * curve * gate
+	ads := 1.0
+	if s.Posters {
+		ads = PosterBoost
+	}
+	return 0.62 * (0.45 + s.Rep/4.5) * s.appeal() * w * curve * gate * ads
 }
 
 // Update advances the simulation by dt seconds of game time.
@@ -603,6 +631,9 @@ func (s *Sim) step(dt float64) {
 		a.update(s, dt)
 	}
 	alive := s.Guests[:0]
+	for _, c := range s.Crew {
+		c.update(s, dt)
+	}
 	for _, g := range s.Guests {
 		g.update(s, dt)
 		if !g.gone {
@@ -711,6 +742,7 @@ func (s *Sim) Next() {
 		return
 	}
 	s.Night++
+	s.Posters = false
 	s.Weather = []Weather{Clear, Clear, Breezy, Drizzle}[s.Rand.Intn(4)]
 	s.Report = NightReport{}
 	for _, p := range s.Troupe {
@@ -733,6 +765,8 @@ func (s *Sim) Totals() NightReport {
 		t.Wages += r.Wages
 		t.Hiring += r.Hiring
 		t.Upkeep += r.Upkeep
+		t.Posters += r.Posters
+		t.Swept += r.Swept
 		t.Cleanup += r.Cleanup
 		t.Litter += r.Litter
 		t.ShowsRun += r.ShowsRun

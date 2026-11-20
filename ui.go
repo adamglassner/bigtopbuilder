@@ -71,6 +71,21 @@ func (g *game) stepper(p pen, x, y float64, label string, val string, dec, inc f
 	p.rect(bx+101.75, y+10.25, 2.5, 12, cCream)
 }
 
+// crewRow hires or lets go of grounds crew.
+func (g *game) crewRow(p pen, x, y, w float64) {
+	s := g.sim
+	g.stepper(p, x, y, "Grounds crew", itoa(len(s.Crew)), func() { s.DismissSweeper() }, func() {
+		if err := s.HireSweeper(); err != nil {
+			g.toast(err.Error(), "", "warn")
+			snd.play("error")
+			return
+		}
+		snd.play("cash")
+		g.unlock("crew")
+	})
+	p.text("Sweep up litter · "+money(ct.SweeperHire)+" to hire, "+money(ct.SweeperWage)+"/night", body(11, 400), x, y+44, alLeft, cMuted)
+}
+
 func (g *game) bar(p pen, x, y, w float64, label string, v float64, c color.RGBA) {
 	p.text(label, body(12, 500), x, y+6, alLeft, cTan)
 	p.rrect(x+84, y, w-84, 12, 6, cNavy)
@@ -409,6 +424,21 @@ func (g *game) drawOverview(p pen, x, y, w float64) {
 		p.text("Troupe: "+itoa(len(s.Troupe))+" · wages "+money(s.Wages())+"/night", body(12, 600), x, y+4, alLeft, cTan)
 		y += 18
 		g.button(p, x, y, w, 36, "Hire & Manage Troupe", bTeal, true, func() { g.panel = "troupe" })
+		y += 48
+		// posters for tonight
+		if s.Posters {
+			p.rrect(x, y, w, 36, 8, mix(cNavy, cMint, 0.15))
+			p.text("Posters are up! Bigger crowd tonight.", body(12, 600), x+w/2, y+18, alCenter, cMint)
+		} else {
+			g.button(p, x, y, w, 36, "Put Up Posters ("+money(ct.PosterCost)+")", bGold, s.Cash >= ct.PosterCost, func() {
+				if s.BuyPosters() == nil {
+					snd.play("cash")
+					g.note("Posters are up all over " + s.Town.Name + ". Expect a bigger crowd tonight!")
+				}
+			})
+		}
+		y += 44
+		g.crewRow(p, x, y, w)
 	case ct.PhaseNight:
 		r := s.Report
 		row := func(l, v string) {
@@ -424,6 +454,11 @@ func (g *game) drawOverview(p pen, x, y, w float64) {
 		stars(p, x+w-74, y, 13, r.AvgStars())
 		y += 30
 		y = p.para("Click a tent to watch its show and change the lineup. Tired acts flub, so swap them out.", body(12, 400), x, y, w, 17, cMuted) + 8
+		if len(s.Crew) > 0 {
+			p.text("Litter swept tonight: "+itoa(r.Swept), body(12, 600), x, y+4, alLeft, cTan)
+			y += 22
+		}
+		g.crewRow(p, x, y, w)
 	}
 	if s.Phase == ct.PhaseBuild || s.Phase == ct.PhaseNight {
 		g.stepper(p, x, LY+lotH-66, "Gate admission", money(s.Gate), func() { s.SetGate(s.Gate - 1) }, func() { s.SetGate(s.Gate + 1) })
@@ -455,14 +490,21 @@ func (g *game) drawBuildBar(p pen) {
 		g.onClick(tx, y0+10, w, 28, func() { g.tab = c; snd.play("tab") })
 		tx += w + 8
 	}
-	// cards
+	// cards, narrower when a tab has a lot of them
 	cx := x0 + 12
+	n := 0
+	for _, d := range ct.Defs {
+		if d.Cat == g.tab {
+			n++
+		}
+	}
+	cw := math.Min(136, (760-x0-12-8*float64(n-1))/float64(n))
 	for _, d := range ct.Defs {
 		if d.Cat != g.tab {
 			continue
 		}
 		d := d
-		cw, ch := 136.0, 98.0
+		ch := 98.0
 		cy := y0 + 46
 		on := g.placing == d
 		hov := g.hover(cx, cy, cw, ch)
@@ -480,13 +522,13 @@ func (g *game) drawBuildBar(p pen) {
 		if d.Locked {
 			thumb.alpha = 0.35
 		}
-		g.drawThumb(thumb, d, cx+cw/2, cy+58)
+		g.drawThumb(thumb, d, cx+cw/2, cy+58, cw/136)
 		p.rect(cx, cy+60, cw, 38, withA(cNavy, 0.82))
 		nameC := cCream
 		if d.Locked {
 			nameC = cMuted
 		}
-		p.text(d.Name, head(13), cx+8, cy+72, alLeft, nameC)
+		p.text(fit(d.Name, head(13), cw-12), head(13), cx+8, cy+72, alLeft, nameC)
 		if d.Locked {
 			p.text("Full game", body(11, 500), cx+8, cy+88, alLeft, cMuted)
 			p.rrect(cx+cw-40, cy+6, 34, 16, 4, cLine)
@@ -556,17 +598,23 @@ func (g *game) drawBuildBar(p pen) {
 }
 
 // drawThumb draws a small version of an attraction for its build card.
-func (g *game) drawThumb(p pen, d *ct.Def, cx, by float64) {
+func (g *game) drawThumb(p pen, d *ct.Def, cx, by, fitK float64) {
 	k := 0.5
 	if d.W >= 3 {
 		k = 0.38
 	}
-	if d.ID == "bigtop" {
+	switch d.ID {
+	case "bigtop":
 		k = 0.29
+	case "threering":
+		k = 0.235
+	case "cannon":
+		k = 0.32
 	}
 	if d.W == 1 {
 		k = 0.8
 	}
+	k *= math.Min(1, fitK*1.1)
 	q := p
 	q.s = p.s * k
 	// map (cx, by) in p's space to q's space

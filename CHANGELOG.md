@@ -3,6 +3,22 @@
 All notable changes to Big Top Builder Classic are recorded here.
 Versions follow Semantic Versioning (MAJOR.MINOR.PATCH). Versions before 1.0.0 are the free demo.
 
+## [0.3.0] - 2026-11-19
+
+### Added
+- Save & Continue. Your circus saves itself through every morning, and the title screen has a Continue button that picks up where you left off, with your tents, troupe, lineups, paths and cash. Starting a New Circus asks first. (Quitting during a night takes you back to that morning.)
+- The Three-Ring Big Top: three rings, seven acts, room for the trapeze and the biggest crowds in town ($11,500).
+- The Human Cannonball sideshow: a countdown, a BOOM and a daredevil flying across the grounds into the net ($4,200).
+- A grounds crew. Hire sweepers from the side panel ($200 each, $60 a night) and they walk the grounds during the show sweeping up litter, so guests stay happier and the cleanup bill shrinks.
+- Decorations in Extras: the Flower Bed, Balloon Arch and Ringmaster Statue. Guests cheer up the first time they walk past each one, and a nicely decorated circus draws a slightly bigger crowd.
+- Performers improve with practice. Every clean show makes an act a little better, and they eventually earn another star (they ask for a little more pay, too).
+- Posters. Each morning you can put up posters around town ($300) for a bigger crowd that night.
+- Four new achievements: Clean Sweep, Three-Ring Circus, Ready Aim Fire! and Practice Makes Perfect.
+
+### Changed
+- Paths you lay now match the dirt path in through the gate: the same packed-dirt colour and width, joining flush with each other and with entrances.
+- Build cards shrink to fit when a tab has a lot of them, and the results screen lists posters with the other costs.
+
 ## [0.2.1] - 2026-11-11
 
 ### Changed

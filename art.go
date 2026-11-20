@@ -16,20 +16,28 @@ import (
 type tentLook struct {
 	stripe, base, trim color.RGBA
 	peaks              int
+	wallH, roofH       float64
+	sign               string
 }
 
 func lookOf(id string) tentLook {
-	if id == "bigtop" {
-		return tentLook{stripe: cRed, base: cCream, trim: cGold, peaks: 2}
+	switch id {
+	case "bigtop":
+		return tentLook{stripe: cRed, base: cCream, trim: cGold, peaks: 2, wallH: 46, roofH: 92, sign: "BIG TOP"}
+	case "threering":
+		return tentLook{stripe: hex(0x7a3fb4), base: cCream, trim: cGold, peaks: 3, wallH: 50, roofH: 104, sign: "THREE RINGS"}
 	}
-	return tentLook{stripe: cBlue, base: cCream, trim: cGold, peaks: 1}
+	return tentLook{stripe: cBlue, base: cCream, trim: cGold, peaks: 1, wallH: 34, roofH: 64, sign: "RING TENT"}
 }
 
 // tentRoof returns the apexes and the eave line of a tent.
 func tentRoof(cx, by, w, wallH, roofH float64, peaks int) (eaveY float64, apex [][2]float64) {
 	eaveY = by - wallH
-	if peaks == 1 {
+	switch peaks {
+	case 1:
 		return eaveY, [][2]float64{{cx, eaveY - roofH}}
+	case 3:
+		return eaveY, [][2]float64{{cx - w*0.27, eaveY - roofH}, {cx, eaveY - roofH}, {cx + w*0.27, eaveY - roofH}}
 	}
 	return eaveY, [][2]float64{{cx - w*0.2, eaveY - roofH}, {cx + w*0.2, eaveY - roofH}}
 }
@@ -38,23 +46,16 @@ func tentRoof(cx, by, w, wallH, roofH float64, peaks int) (eaveY float64, apex [
 func drawTent(p pen, d *ct.Def, cx, by, w float64, a *ct.Attraction, t float64) {
 	lk := lookOf(d.ID)
 	half := w * 0.46
-	wallH := 34.0
-	roofH := 64.0
-	if lk.peaks == 2 {
-		wallH, roofH = 46, 92
-	}
+	wallH, roofH := lk.wallH, lk.roofH
 	eave, apex := tentRoof(cx, by, w, wallH, roofH, lk.peaks)
 	running := a != nil && a.Running
 	sway := 0.0
-	if d.ID == "bigtop" || running {
+	if lk.peaks > 1 || running {
 		sway = math.Sin(t*2.2) * 1.5
 	}
 	p.ellipse(cx, by+2, half+10, 12, cShadow)
 	// walls: vertical stripes
-	n := 10
-	if lk.peaks == 2 {
-		n = 14
-	}
+	n := []int{0, 10, 14, 18}[lk.peaks]
 	sw := half * 2 / float64(n)
 	for i := 0; i < n; i++ {
 		c := lk.base
@@ -65,10 +66,7 @@ func drawTent(p pen, d *ct.Def, cx, by, w float64, a *ct.Attraction, t float64) 
 	}
 	p.rect(cx-half, by-5, half*2, 5, mix(lk.stripe, cBlack, 0.35))
 	// the doorway with its flaps tied back
-	dw := 16.0
-	if lk.peaks == 2 {
-		dw = 22
-	}
+	dw := []float64{0, 16, 22, 26}[lk.peaks]
 	doorTop := by - wallH + 8
 	glow := cNight
 	if running {
@@ -92,7 +90,7 @@ func drawTent(p pen, d *ct.Def, cx, by, w float64, a *ct.Attraction, t float64) 
 		}
 	} else {
 		// two poles: a fan of stripes down each end, upright panels between them
-		a0, a1 := apex[0], apex[1]
+		a0, a1 := apex[0], apex[len(apex)-1]
 		l, r := cx-half-6, cx+half+6
 		p.poly(lk.base, l, eave, a0[0]+sway, a0[1], a1[0]+sway, a1[1], r, eave)
 		fan := func(ax, ay, x0, x1 float64, m int, startStripe bool) {
@@ -116,10 +114,7 @@ func drawTent(p pen, d *ct.Def, cx, by, w float64, a *ct.Attraction, t float64) 
 		p.line(a0[0]+sway, a0[1], a1[0]+sway, a1[1], 2.5, lk.trim)
 	}
 	// scalloped valance along the eave
-	k := 12
-	if lk.peaks == 2 {
-		k = 16
-	}
+	k := []int{0, 12, 16, 20}[lk.peaks]
 	vw := (half*2 + 12) / float64(k)
 	p.rect(cx-half-6, eave-3, half*2+12, 6, lk.trim)
 	for i := 0; i < k; i++ {
@@ -135,21 +130,12 @@ func drawTent(p pen, d *ct.Def, cx, by, w float64, a *ct.Attraction, t float64) 
 		ax, ay := ap[0]+sway, ap[1]
 		p.line(ax, ay, ax, ay-22, 2.5, cTan)
 		fl := math.Sin(t*6+float64(i)) * 4
-		fc := cGold
-		if i == 1 || lk.peaks == 1 {
-			fc = cRed
-		}
-		if lk.peaks == 1 {
-			fc = cGold
-		}
+		fc := []color.RGBA{cGold, cRed, cTeal}[i%3]
 		p.poly(fc, ax, ay-22, ax+18, ay-17+fl, ax, ay-12)
 		p.circle(ax, ay-1, 4, lk.trim)
 	}
 	// marquee sign over the door
-	name := "RING TENT"
-	if lk.peaks == 2 {
-		name = "BIG TOP"
-	}
+	name := lk.sign
 	sy := eave - 2
 	tw := textW(name, head(10)) + 14
 	p.rrect(cx-tw/2, sy-9, tw, 18, 4, cRed)
@@ -164,11 +150,7 @@ func drawTent(p pen, d *ct.Def, cx, by, w float64, a *ct.Attraction, t float64) 
 // tentTop is the highest point of a tent, for spotlights and labels.
 func tentTop(d *ct.Def, cx, by, w float64) (float64, float64) {
 	lk := lookOf(d.ID)
-	wallH, roofH := 34.0, 64.0
-	if lk.peaks == 2 {
-		wallH, roofH = 46, 92
-	}
-	_, apex := tentRoof(cx, by, w, wallH, roofH, lk.peaks)
+	_, apex := tentRoof(cx, by, w, lk.wallH, lk.roofH, lk.peaks)
 	return cx, apex[0][1]
 }
 
@@ -344,13 +326,14 @@ func drawCart(p pen, d *ct.Def, x, y, w, h, t float64) {
 /* ---------- performers ---------- */
 
 var costumeOf = map[string][2]color.RGBA{
-	"clown":    {cGold, cRed},
-	"stilts":   {cTeal, cCream},
-	"juggler":  {cPurple, cGold},
-	"strong":   {cRed, cGold},
-	"acrobats": {cBlue, cCream},
-	"fire":     {hex(0x9a2f2a), cOrange},
-	"trapeze":  {cPink, cCream},
+	"clown":     {cGold, cRed},
+	"stilts":    {cTeal, cCream},
+	"juggler":   {cPurple, cGold},
+	"strong":    {cRed, cGold},
+	"acrobats":  {cBlue, cCream},
+	"daredevil": {cRed, cGold},
+	"fire":      {hex(0x9a2f2a), cOrange},
+	"trapeze":   {cPink, cCream},
 }
 
 // drawPerformer draws a performer standing with their feet at (x, y), k times life size.
@@ -473,4 +456,218 @@ func drawPerformer(p pen, act string, x, y, k, t float64, look, skinN int) {
 	default:
 		figure(x, y, k, [4]float64{0.4, 0, 0.4, 0})
 	}
+}
+
+/* ---------- the human cannonball ---------- */
+
+// cannonPhase splits a cannonball show into countdown, flight and landing.
+func cannonPhase(a *ct.Attraction) (prog float64, firing bool) {
+	if a == nil || !a.Running || a.Length <= 0 {
+		return 0, false
+	}
+	return a.Anim / a.Length, true
+}
+
+func drawCannon(p pen, x, y, w, h, t float64, a *ct.Attraction) {
+	by := y + h - 4
+	p.ellipse(x+w/2, by, w*0.5, 9, cShadow)
+	// a low stage
+	p.rrect(x+4, by-12, w-8, 12, 4, hex(0x6a3a2a))
+	p.rect(x+4, by-12, w-8, 3, cGold)
+	// the safety net on the right
+	nx0, nx1, ny := x+w-58, x+w-8, by-34.0
+	p.line(nx0, by-12, nx0, ny-6, 3, hex(0x4a4a5a))
+	p.line(nx1, by-12, nx1, ny-6, 3, hex(0x4a4a5a))
+	prog, running := cannonPhase(a)
+	sag := 0.0
+	if running && prog > 0.72 {
+		sag = math.Max(0, math.Sin((prog-0.72)/0.28*math.Pi*3)) * 6 * (1 - prog)
+	}
+	p.poly(withA(cCream, 0.55), nx0, ny-4, nx1, ny-4, nx1-4, ny+6+sag, nx0+4, ny+6+sag)
+	for i := 0; i <= 5; i++ {
+		xx := nx0 + float64(i)*(nx1-nx0)/5
+		p.line(xx, ny-4, xx+(float64(i)-2.5)*0.6, ny+6+sag, 1, withA(cNavy, 0.5))
+	}
+	// the cannon on its carriage, aimed up and to the right
+	cx, cy := x+40, by-22
+	ang := -0.62
+	cs, sn := math.Cos(ang), math.Sin(ang)
+	pt := func(u, v float64) (float64, float64) { return cx + u*cs - v*sn, cy + u*sn + v*cs }
+	body := func(u0, u1, r0, r1 float64, c color.RGBA) {
+		ax, ay := pt(u0, -r0)
+		bx, by2 := pt(u1, -r1)
+		ccx, ccy := pt(u1, r1)
+		dx, dy := pt(u0, r0)
+		p.poly(c, ax, ay, bx, by2, ccx, ccy, dx, dy)
+	}
+	body(-14, 54, 14, 10, hex(0x2a2c48))
+	body(-14, 54, 14, 10, hex(0x2a2c48))
+	for _, u := range []float64{2, 30, 50} {
+		body(u, u+4, 14, 12, cGold)
+	}
+	mx, my := pt(56, 0)
+	p.circle(mx, my, 10, hex(0x1a1b30))
+	p.ring(mx, my, 10, 2.5, cGold)
+	sx, sy := pt(16, 0)
+	star(p, sx, sy, 5, cRed)
+	// carriage and wheels
+	p.poly(cRedDk, cx-22, cy+8, cx+20, cy+8, cx+12, cy-6, cx-14, cy-4)
+	for _, wx := range []float64{cx - 12, cx + 12} {
+		p.circle(wx, by-14, 10, hex(0x6a3a2a))
+		p.ring(wx, by-14, 10, 2, cGold)
+		for k := 0; k < 4; k++ {
+			ang := float64(k)*math.Pi/4 + t*0.2
+			p.line(wx-math.Cos(ang)*9, by-14-math.Sin(ang)*9, wx+math.Cos(ang)*9, by-14+math.Sin(ang)*9, 1.4, cGold)
+		}
+	}
+	// the show: fuse, BOOM, flight, net
+	landX, landY := (nx0+nx1)/2, ny+2+sag
+	switch {
+	case !running:
+		// the daredevil waits by the cannon, waving
+		drawPerformer(p, "daredevil", x+w/2-8, by-12, 0.45, t, 3, 2)
+	case prog < 0.3:
+		fx, fy := pt(-16, 0)
+		if math.Sin(t*30) > 0 {
+			p.circle(fx, fy, 3.5, cGold)
+			p.circle(fx, fy, 1.8, cWhite)
+		}
+		p.text(itoa(3-int(prog/0.1)), display(22), x+w/2+6, by-74, alCenter, cGold)
+	case prog < 0.72:
+		f := (prog - 0.3) / 0.42
+		if f < 0.25 {
+			sm := 1 - f/0.25
+			for k := 0; k < 5; k++ {
+				p.circle(mx+float64(k)*5, my-float64(k)*3, (6+float64(k)*3)*(1-sm*0.3), withA(cCream, 0.7*sm))
+			}
+		}
+		px := mx + (landX-mx)*f
+		py := my + (landY-my)*f - math.Sin(f*math.Pi)*110
+		spin := f * 9
+		p.circle(px, py, 6, cRed)
+		p.line(px-math.Cos(spin)*7, py-math.Sin(spin)*7, px+math.Cos(spin)*7, py+math.Sin(spin)*7, 3, cGold)
+		p.circle(px+math.Cos(spin+1.5)*6, py+math.Sin(spin+1.5)*6, 3.2, hex(0xf2c79e))
+		// a dotted trail
+		for k := 1; k < 6; k++ {
+			ff := f - float64(k)*0.035
+			if ff < 0 {
+				break
+			}
+			tx := mx + (landX-mx)*ff
+			ty := my + (landY-my)*ff - math.Sin(ff*math.Pi)*110
+			p.circle(tx, ty, 2, withA(cCream, 0.5-float64(k)*0.08))
+		}
+	default:
+		p.circle(landX, landY-6, 6, cRed)
+		p.circle(landX+5, landY-10, 3.2, hex(0xf2c79e))
+		if math.Sin(t*6) > 0 {
+			star(p, landX-12, landY-22, 3, cGold)
+			star(p, landX+14, landY-26, 3, cGold)
+		}
+	}
+	f := head(9)
+	tw := textW("HUMAN CANNONBALL", f) + 14
+	p.rrect(x+w/2-tw/2, by-100, tw, 15, 4, cRed)
+	p.rrectStroke(x+w/2-tw/2, by-100, tw, 15, 4, 1.5, cGold)
+	p.text("HUMAN CANNONBALL", f, x+w/2, by-92.5, alCenter, cCream)
+}
+
+/* ---------- decorations ---------- */
+
+func drawFlowers(p pen, cx, by, t float64, seed int) {
+	p.ellipse(cx, by-6, 19, 9, hex(0x5a3a22))
+	p.ellipse(cx, by-8, 17, 7, hex(0x6e4a2c))
+	cols := []color.RGBA{cRed, cGold, cPink, cPurple, cOrange, cCream}
+	for k := 0; k < 9; k++ {
+		fx := cx - 13 + math.Mod(float64(k*11+seed*7), 26)
+		fy := by - 8 - math.Mod(float64(k*7+seed*3), 10) - 6
+		sway := math.Sin(t*1.5+float64(k)) * 0.8
+		p.line(fx, by-8, fx+sway, fy, 1.4, hex(0x3d8a3d))
+		p.ellipse(fx+sway-3, fy+3, 3, 1.5, hex(0x4fa04a))
+		c := cols[(k+seed)%len(cols)]
+		for q := 0; q < 5; q++ {
+			a := float64(q) * 2 * math.Pi / 5
+			p.circle(fx+sway+math.Cos(a)*2.4, fy+math.Sin(a)*2.4, 2, c)
+		}
+		p.circle(fx+sway, fy, 1.4, cGold)
+	}
+}
+
+func drawArch(p pen, x, by, w, t float64) {
+	cols := []color.RGBA{cRed, cGold, cTeal, cPink, cPurple, cOrange}
+	l, r := x+10, x+w-10
+	top := by - 86.0
+	mid := (l + r) / 2
+	rad := (r - l) / 2
+	p.ellipse(l, by-2, 8, 3, cShadow)
+	p.ellipse(r, by-2, 8, 3, cShadow)
+	// the columns
+	k := 0
+	for _, cx := range []float64{l, r} {
+		for yy := by - 6; yy > top+rad; yy -= 10 {
+			p.circle(cx-3, yy, 6, cols[k%len(cols)])
+			p.circle(cx+3, yy-5, 6, cols[(k+2)%len(cols)])
+			k++
+		}
+	}
+	// the arch
+	for i := 0; i <= 12; i++ {
+		a := math.Pi - float64(i)*math.Pi/12
+		bx := mid + math.Cos(a)*rad
+		bby := top + rad - math.Sin(a)*rad
+		bob := math.Sin(t*2+float64(i)) * 1.2
+		p.circle(bx, bby+bob, 7, cols[i%len(cols)])
+		p.circle(bx-2, bby-2+bob, 2, withA(cWhite, 0.55))
+	}
+}
+
+func drawStatue(p pen, cx, by, t float64) {
+	p.ellipse(cx, by-2, 18, 5, cShadow)
+	// stone plinth
+	p.rect(cx-15, by-22, 30, 20, hex(0x8a8aa0))
+	p.rect(cx-17, by-26, 34, 6, hex(0xa6a6bc))
+	p.rect(cx-17, by-6, 34, 4, hex(0x6e6e84))
+	gold, dk, lt := hex(0xe2b53e), hex(0xa8801f), hex(0xffe08a)
+	b := by - 26
+	// legs, coat, arm raised with a cane, top hat
+	p.line(cx-3, b, cx-3, b-14, 3.5, dk)
+	p.line(cx+3, b, cx+3, b-14, 3.5, dk)
+	p.poly(gold, cx-8, b-10, cx+8, b-10, cx+6, b-30, cx-6, b-30)
+	p.poly(dk, cx-8, b-10, cx-3, b-10, cx-1, b-28, cx-6, b-30)
+	p.line(cx+6, b-28, cx+15, b-40, 3, gold)
+	p.line(cx+15, b-40, cx+18, b-56, 1.6, dk)
+	p.circle(cx+18, b-57, 2, lt)
+	p.line(cx-6, b-28, cx-11, b-17, 3, dk)
+	p.circle(cx, b-35, 5, gold)
+	p.rect(cx-5, b-48, 10, 10, dk)
+	p.rect(cx-8, b-39, 16, 2.5, dk)
+	// a glint that wanders over the gold
+	gl := 0.5 + 0.5*math.Sin(t*1.3)
+	p.circle(cx-3+gl*6, b-26+gl*4, 1.6, withA(cWhite, 0.8))
+}
+
+/* ---------- grounds crew ---------- */
+
+func (g *game) drawSweeper(p pen, c *ct.Sweeper) {
+	x, y := tilePx(c.X, c.Y)
+	ph := math.Sin(g.clock*10+float64(c.ID)) * 2.6
+	p.ellipse(x, y, 5.5, 2.2, cShadow)
+	overall := hex(0x2f7d5a)
+	p.line(x-2, y-8, x-2+ph*0.5, y, 2.4, overall)
+	p.line(x+2, y-8, x+2-ph*0.5, y, 2.4, overall)
+	p.rrect(x-5, y-18, 10, 11, 3, overall)
+	p.rect(x-5, y-17, 10, 3, cCream)
+	skin := skins[c.Skin%len(skins)]
+	p.circle(x, y-22, 4.4, skin)
+	p.ellipse(x, y-25, 5, 2.2, hex(0x2f7d5a))
+	p.rect(x, y-26, 6, 1.8, hex(0x235e43))
+	// the broom
+	sw := 0.0
+	if c.Sweeping {
+		sw = math.Sin(g.clock*14) * 4
+		p.circle(x+9+sw, y-1, 2.5, withA(cTan, 0.6))
+		p.circle(x+13-sw, y-3, 1.8, withA(cTan, 0.5))
+	}
+	p.line(x+3, y-16, x+8+sw, y, 1.6, cBrown)
+	p.poly(hex(0xd9b56a), x+5+sw, y, x+12+sw, y, x+10+sw, y-4, x+6+sw, y-4)
 }

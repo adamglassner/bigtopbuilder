@@ -2,6 +2,8 @@ package main
 
 import (
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -40,10 +42,16 @@ type game struct {
 	placing  *ct.Def
 	sel      *ct.Attraction
 	selGuest *ct.Guest
-	slotPick int  // tent slot being booked in the inspector (-1 = none)
-	painting bool // dragging to lay (or lift) paths
-	paintAdd bool // true = laying paths, false = picking them up
-	paintAt  [2]int
+	slotPick int // tent slot being booked in the inspector (-1 = none)
+
+	cannonFired  map[int]bool // cannons that have gone BOOM this show
+	lastRunSave  float64
+	runPeek      *runPeek
+	noSave       bool // screenshot runs don't touch the saved circus
+	brokeCleared bool
+	painting     bool // dragging to lay (or lift) paths
+	paintAdd     bool // true = laying paths, false = picking them up
+	paintAt      [2]int
 
 	hits     []hit
 	dragging func(mx float64)
@@ -69,7 +77,32 @@ func newGame() *game {
 }
 
 func (g *game) newRun() {
-	g.sim = ct.New(time.Now().UnixNano())
+	g.startRun(ct.New(time.Now().UnixNano()))
+	g.save.Stats.Runs++
+	g.persist()
+	g.note("Welcome to " + g.sim.Town.Name + "! " + g.sim.Troupe[0].Name + " the Clown and " + g.sim.Troupe[1].Name + " the Juggler are ready to perform.")
+	g.note("Raise a tent, then click it to book your acts.")
+	g.saveRun()
+}
+
+// continueRun picks up the saved circus on the morning it was saved.
+func (g *game) continueRun() {
+	b, err := os.ReadFile(runPath())
+	if err != nil {
+		g.toast("Couldn't find your saved circus", "", "warn")
+		return
+	}
+	s, err := ct.Restore(b)
+	if err != nil {
+		g.toast("Couldn't load your saved circus", err.Error(), "warn")
+		return
+	}
+	g.startRun(s)
+	g.note("Welcome back to " + s.Town.Name + "! It's the morning of night " + itoa(s.Night) + ".")
+}
+
+func (g *game) startRun(s *ct.Sim) {
+	g.sim = s
 	g.screen = "play"
 	g.panel = ""
 	g.placing, g.sel, g.selGuest = nil, nil, nil
@@ -78,10 +111,63 @@ func (g *game) newRun() {
 	g.slotPick = -1
 	g.floaters, g.toasts, g.log = nil, nil, nil
 	g.runStart = time.Now()
-	g.save.Stats.Runs++
-	g.persist()
-	g.note("Welcome to " + g.sim.Town.Name + "! " + g.sim.Troupe[0].Name + " the Clown and " + g.sim.Troupe[1].Name + " the Juggler are ready to perform.")
-	g.note("Raise a tent, then click it to book your acts.")
+	g.cannonFired = map[int]bool{}
+	g.lastRunSave = g.clock
+	g.brokeCleared = false
+}
+
+/* ---------- the saved run ---------- */
+
+// runPath is where the circus in progress is kept, next to the settings.
+func runPath() string {
+	dir := appDir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, bundleName, "run.json")
+}
+
+// saveRun saves the circus; only mornings can be saved.
+func (g *game) saveRun() {
+	if g.sim == nil || g.sim.Phase != ct.PhaseBuild || g.noSave || runPath() == "" {
+		return
+	}
+	b, err := g.sim.Snapshot()
+	if err != nil {
+		return
+	}
+	os.MkdirAll(filepath.Dir(runPath()), 0o755)
+	tmp := runPath() + ".tmp"
+	if os.WriteFile(tmp, b, 0o644) == nil {
+		os.Rename(tmp, runPath())
+	}
+	g.lastRunSave = g.clock
+	g.runPeek = nil
+}
+
+// savedRun says which night the saved circus is on (ok=false if there isn't one).
+func (g *game) savedRun() (night, cash int, ok bool) {
+	if g.runPeek == nil {
+		g.runPeek = &runPeek{}
+		if p := runPath(); p != "" && !g.noSave {
+			if b, err := os.ReadFile(p); err == nil {
+				g.runPeek.night, g.runPeek.cash, g.runPeek.ok = ct.SavedNight(b)
+			}
+		}
+	}
+	return g.runPeek.night, g.runPeek.cash, g.runPeek.ok
+}
+
+func (g *game) deleteRun() {
+	if p := runPath(); p != "" && !g.noSave {
+		os.Remove(p)
+	}
+	g.runPeek = nil
+}
+
+type runPeek struct {
+	night, cash int
+	ok          bool
 }
 
 // applyTestQuery sets up a scene for automated screenshots.
@@ -91,6 +177,7 @@ func (g *game) applyTestQuery(q string) {
 	}
 	has := func(k string) bool { return strings.Contains(q, k) }
 	g.heroShot = has("hero")
+	g.noSave = true
 	defer func() {
 		switch {
 		case has("panel=help"):
@@ -155,6 +242,47 @@ func (g *game) applyTestQuery(q string) {
 			g.sel, g.slotPick = tents[0], 4
 		}
 	}
+	if has("v3") {
+		s.Cash = 1 << 20
+		for _, b := range []struct {
+			id   string
+			x, y int
+		}{{"threering", 7, 1}, {"ringtent", 2, 1}, {"cannon", 14, 2}, {"funhouse", 19, 2},
+			{"popcorn", 4, 8}, {"cottoncandy", 7, 8}, {"hotdogs", 11, 8}, {"soda", 14, 8},
+			{"flowers", 1, 5}, {"flowers", 5, 5}, {"flowers", 13, 5}, {"flowers", 17, 5}, {"statue", 12, 5}, {"arch", 18, 9}, {"statue", 22, 8},
+			{"lamp", 2, 9}, {"lamp", 17, 11}, {"lamp", 21, 12}, {"lamp", 10, 5}, {"trash", 10, 11}, {"trash", 6, 11}, {"bench", 13, 11}} {
+			if _, err := s.Place(ct.DefByID(b.id), b.x, b.y); err != nil {
+				println("v3:", b.id, err.Error())
+			}
+		}
+		for x := 1; x < 23; x++ {
+			s.LayPath(x, 6)
+		}
+		for _, c := range [][2]int{{9, 5}, {3, 4}, {3, 5}, {15, 4}, {15, 5}, {20, 4}, {20, 5}, {5, 7}, {8, 7}, {12, 7}, {15, 7}} {
+			s.LayPath(c[0], c[1])
+		}
+		for _, a := range s.Attr {
+			switch a.Def.ID {
+			case "threering":
+				for i, id := range []string{"clown", "juggler", "acrobats", "strong", "stilts", "fire", "trapeze"} {
+					pf := s.NewPerformer(id)
+					s.Hireable = append(s.Hireable, pf)
+					s.Hire(pf)
+					s.Book(pf, a, i)
+				}
+				if has("inspect") {
+					g.sel = a
+				}
+			case "ringtent":
+				s.Book(s.Troupe[0], a, 0)
+				s.Book(s.Troupe[1], a, 1)
+			}
+		}
+		s.HireSweeper()
+		s.HireSweeper()
+		s.HireSweeper()
+		s.Cash = 6240
+	}
 	if has("paths") {
 		s.Cash += 5000
 		for x := 1; x < 23; x++ {
@@ -178,7 +306,7 @@ func (g *game) applyTestQuery(q string) {
 		}
 		s.Events = nil
 		for _, a := range s.Attr {
-			if a.Def.ID == "bigtop" {
+			if a.Def.ID == "bigtop" || a.Def.ID == "threering" {
 				g.sel = a
 			}
 		}
@@ -203,6 +331,9 @@ func (g *game) applyTestQuery(q string) {
 	}
 	if has("tab=food") {
 		g.tab = ct.CatFood
+	}
+	if has("tab=extra") {
+		g.tab = ct.CatExtra
 	}
 	if has("tab=side") {
 		g.tab = ct.CatSideshow
@@ -235,6 +366,14 @@ func (g *game) Update() error {
 			s.Update(dt * mul)
 		}
 		g.events()
+		g.cannonSounds()
+		switch {
+		case s.Phase == ct.PhaseBuild && g.clock-g.lastRunSave > 4:
+			g.saveRun() // every few seconds through the morning
+		case s.Phase == ct.PhaseBroke && !g.brokeCleared:
+			g.deleteRun()
+			g.brokeCleared = true
+		}
 		if g.selGuest != nil && !g.guestAlive(g.selGuest) {
 			g.selGuest = nil
 		}
@@ -389,7 +528,12 @@ func (g *game) clickWorld() {
 		snd.play("place")
 		x, y := tilePx(float64(a.X)+float64(d.W)/2, float64(a.Y))
 		g.floaters = append(g.floaters, floater{x: x, y: y, text: "-" + money(d.Cost)})
-		if d.ID == "bigtop" {
+		if d.ID == "threering" {
+			g.unlock("threering")
+			g.note("Three rings, seven acts! Click it to book the biggest show in town.")
+		} else if d.ID == "cannon" {
+			g.unlock("cannon")
+		} else if d.ID == "bigtop" {
 			g.unlock("bigtop")
 			g.note("The Big Top is up! Click it to book up to five acts.")
 		} else if d.Cat == ct.CatTent {
@@ -450,6 +594,23 @@ func (g *game) paintPath() {
 	if s.LiftPath(tx, ty) {
 		snd.play("tab")
 		g.floaters = append(g.floaters, floater{x: x, y: y, text: "+" + money(ct.PathCost), good: true})
+	}
+}
+
+// cannonSounds plays the BOOM as each cannon fires.
+func (g *game) cannonSounds() {
+	for _, a := range g.sim.Attr {
+		if a.Def.ID != "cannon" {
+			continue
+		}
+		prog, running := cannonPhase(a)
+		switch {
+		case !running:
+			g.cannonFired[a.ID] = false
+		case prog >= 0.3 && !g.cannonFired[a.ID]:
+			g.cannonFired[a.ID] = true
+			snd.play("boom")
+		}
 	}
 }
 
@@ -523,6 +684,10 @@ func (g *game) events() {
 			if n := len(e.A.Show.Acts); n > 1 && e.A.Show.Acts[n-1].Note == "Big finish!" {
 				g.unlock("finale")
 			}
+		case "starup":
+			snd.play("fanfare")
+			g.note(e.Text + " Practice makes perfect.")
+			g.unlock("starup")
 		case "flub":
 			snd.play("flub")
 			g.note(e.Text + " Tired acts flub. Rest them or swap them out.")
@@ -608,6 +773,8 @@ func (g *game) Draw(screen *ebiten.Image) {
 		g.drawHelp(p)
 	case "settings":
 		g.drawSettings(p)
+	case "newrun":
+		g.drawNewRun(p)
 	case "troupe":
 		g.drawTroupe(p)
 	}

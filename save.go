@@ -96,6 +96,10 @@ var achievements = []achievement{
 	{"soldout", "Sold Out", "Take $1,200 in show tickets in one night.", false},
 	{"roadready", "Opening Week", "Keep the circus running for three nights.", false},
 	{"longrun", "Held Over", "Keep the circus running for ten nights.", false},
+	{"crew", "Clean Sweep", "Hire someone for the grounds crew.", false},
+	{"threering", "Three-Ring Circus", "Raise the Three-Ring Big Top.", false},
+	{"cannon", "Ready, Aim, Fire!", "Build the Human Cannonball.", false},
+	{"starup", "Practice Makes Perfect", "Have a performer earn another star.", false},
 	{"mustgoon", "The Show Must Go On", "Have a tired act flub in front of the crowd.", true},
 }
 

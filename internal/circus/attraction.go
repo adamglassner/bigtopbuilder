@@ -242,6 +242,14 @@ func (a *Attraction) finish(s *Sim) {
 			total += v
 			ac.P.Energy = clamp(ac.P.Energy-ShowEnergy*(1.2-0.3*ac.P.Skill), 0, 100)
 			ac.P.Shows++
+			if !a.Flubbed(i) && ac.P.Skill < MaxSkill { // practice makes perfect
+				before := ac.P.Stars()
+				ac.P.Skill = math.Min(MaxSkill, ac.P.Skill+SkillPerShow)
+				if ac.P.Stars() > before {
+					ac.P.Rose++
+					s.emit(Event{Kind: "starup", X: cx, Y: cy, A: a, Text: ac.P.Name + " the " + ac.P.Act.Name + " is now a " + itoa(ac.P.Stars()) + "-star act!"})
+				}
+			}
 		}
 		fun = clamp(8+total*0.36, 0, 62)
 		stars = clamp(total/(float64(d.Slots)*32)*5, 0, 5)

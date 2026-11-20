@@ -227,6 +227,12 @@ func Effects() map[string][]byte {
 		b.add(0.1, 0.18, sweep(900, 1500, 0.18), 0.06) // a whistle from the back
 	})
 	mk("polite", 1.2, 1, func(b buf) { clap(b, 40, 1.1, 0.18, 5) })
+	mk("boom", 1.2, 1, func(b buf) {
+		b.add(0, 0.9, noise(0.9, 4), 0.55)
+		b.add(0, 0.5, tuba(31, 0.5), 0.6)
+		b.add(0.02, 0.3, sweep(180, 50, 0.3), 0.4)
+		b.add(0.25, 0.8, noise(0.8, 12), 0.12) // the crowd's "ooh"
+	})
 	mk("flub", 0.9, 1, func(b buf) {
 		b.add(0, 0.7, sweep(1100, 260, 0.7), 0.3) // slide whistle
 		b.add(0.7, 0.18, tuba(40, 0.18), 0.4)

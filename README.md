@@ -19,6 +19,9 @@ Raise the tents, hire the troupe, plan each show's running order and keep the cr
 - **Showtime:** press **Open the Gates**. Tents wait for an audience, then put on the show act by act.
   Every show tires the acts out and tired acts can flub, so swap them around. Space pauses; 1, 2 and 3 set
   the speed. Nights go on as long as you like; the run ends only if you go broke.
+- **Crowds and upkeep:** hire a grounds crew to sweep up litter, put up posters in the morning for a bigger
+  crowd, and decorate with flower beds, balloon arches and statues. Acts improve with every clean show.
+- **Saving:** the circus saves itself through every morning; Continue on the title screen picks it back up.
 - Esc cancels or opens the menu, M toggles music, F11 toggles full screen, Delete sells what's selected.
 
 Settings, records and achievements are kept in `%APPDATA%\Ironite\BigTopBuilder\save.json`, and the

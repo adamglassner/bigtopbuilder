@@ -37,6 +37,7 @@ type Def struct {
 	QueueMax int
 	Light    float64 // radius it lights at night, in tiles
 	Locked   bool    // shown but saved for the full game
+	Charm    float64 // decorations: happiness for guests who pass by
 	Blurb    string
 }
 
@@ -49,7 +50,8 @@ var Defs = []*Def{
 		Blurb: "A one-ring tent. Book up to three acts and plan the running order."},
 	{ID: "bigtop", Name: "The Big Top", Cat: CatTent, W: 4, H: 4, Cost: 5400, Price: 7, MaxPrice: 18, FairMax: 8, Capacity: 30, Cycle: 32, Slots: 5, Tall: true, Upkeep: 260, QueueMax: 34, Light: 3.6,
 		Blurb: "The main event. Five acts, room for the trapeze, and the whole town talking."},
-	{ID: "threering", Name: "Three-Ring Big Top", Cat: CatTent, W: 5, H: 4, Cost: 12000, Locked: true, Blurb: "Coming in the full game."},
+	{ID: "threering", Name: "Three-Ring Big Top", Cat: CatTent, W: 5, H: 4, Cost: 11500, Price: 10, MaxPrice: 24, FairMax: 12, Capacity: 46, Cycle: 40, Slots: 7, Tall: true, Upkeep: 420, QueueMax: 50, Light: 4.2,
+		Blurb: "Three rings, seven acts and the biggest crowd in town. Room for the trapeze."},
 
 	// Sideshows
 	{ID: "funhouse", Name: "Funhouse", Cat: CatSideshow, W: 2, H: 2, Cost: 1100, Price: 2, MaxPrice: 7, FairMax: 3, Capacity: 6, Cycle: 7, Fun: 24, Upkeep: 50, QueueMax: 10, Light: 1.6,
@@ -58,7 +60,8 @@ var Defs = []*Def{
 		Blurb: "Tall, short, wide and wiggly. Guests come out giggling."},
 	{ID: "fortune", Name: "Fortune Teller", Cat: CatSideshow, W: 2, H: 2, Cost: 600, Price: 3, MaxPrice: 8, FairMax: 4, Capacity: 1, Cycle: 3, Fun: 16, Upkeep: 40, QueueMax: 6, Light: 1.4,
 		Blurb: "Madame Zora sees great things in your future. For a small fee."},
-	{ID: "cannon", Name: "Human Cannonball", Cat: CatSideshow, W: 3, H: 2, Cost: 4200, Locked: true, Blurb: "Coming in the full game."},
+	{ID: "cannon", Name: "Human Cannonball", Cat: CatSideshow, W: 3, H: 2, Cost: 4200, Price: 4, MaxPrice: 10, FairMax: 5, Capacity: 14, Cycle: 9, Fun: 34, Upkeep: 140, QueueMax: 18, Light: 2.2,
+		Blurb: "Ten, nine, eight... BOOM! Captain Kaboom flies across the grounds into the net. Comes with its own daredevil."},
 
 	// Food
 	{ID: "popcorn", Name: "Popcorn", Cat: CatFood, W: 2, H: 2, Cost: 480, Price: 3, MaxPrice: 8, FairMax: 4, Capacity: 1, Cycle: 1.8, Fun: 6, Hunger: 40, Thirst: -10, Upkeep: 40, Goods: 0.6, QueueMax: 6, Light: 1.6,
@@ -73,6 +76,12 @@ var Defs = []*Def{
 	// Extras
 	{ID: "path", Name: "Path", Cat: CatExtra, W: 1, H: 1, Cost: PathCost,
 		Blurb: "Click and drag to lay a path. Guests take paths when they can, walk faster on them and stay out of the mud. Drag over a path to pick it up again."},
+	{ID: "flowers", Name: "Flower Bed", Cat: CatExtra, W: 1, H: 1, Cost: 120, Charm: 4,
+		Blurb: "Marigolds and petunias. Guests who walk past cheer up a little."},
+	{ID: "arch", Name: "Balloon Arch", Cat: CatExtra, W: 2, H: 1, Cost: 360, Charm: 7,
+		Blurb: "A bright arch of balloons. Guests nearby smile and point."},
+	{ID: "statue", Name: "Ringmaster Statue", Cat: CatExtra, W: 1, H: 1, Cost: 650, Upkeep: 10, Charm: 11, Light: 1.4,
+		Blurb: "A gleaming golden ringmaster on a plinth. A real crowd-pleaser."},
 	{ID: "bench", Name: "Bench", Cat: CatExtra, W: 1, H: 1, Cost: 80, Capacity: 2, Cycle: 7, Rest: 55, QueueMax: 2,
 		Blurb: "Tired guests sit down and stay longer."},
 	{ID: "trash", Name: "Trash Can", Cat: CatExtra, W: 1, H: 1, Cost: 60,
@@ -156,4 +165,12 @@ const (
 	MaxTroupe    = 12
 	PathCost     = 15
 	BrokeAt      = -1500 // below this cash after a night, the circus folds
+	CharmRadius  = 2.5   // tiles; how close a guest must pass a decoration
+	SweeperHire  = 200
+	SweeperWage  = 60
+	MaxCrew      = 6
+	PosterCost   = 300
+	PosterBoost  = 1.35  // tonight's crowd with posters up
+	SkillPerShow = 0.004 // how much an act improves with each clean show
+	MaxSkill     = 1.25
 )

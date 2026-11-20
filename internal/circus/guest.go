@@ -41,6 +41,7 @@ type Guest struct {
 	ox, oy         float64 // where in the tile they like to walk
 	wait           float64
 	litterT        float64
+	seen           map[int]bool // decorations already enjoyed
 	wanders        int
 	leaving        bool
 	outside        bool
@@ -218,6 +219,7 @@ func (g *Guest) walk(s *Sim, dt float64) {
 				}
 			}
 			g.lastTile = i
+			g.admire(s, i)
 		}
 		return
 	}
@@ -460,6 +462,35 @@ func (g *Guest) decide(s *Sim) {
 		}
 	}
 	g.goal = cur
+}
+
+// admire cheers a guest up the first time they pass each decoration.
+func (g *Guest) admire(s *Sim, i int) {
+	for _, id := range s.decoNear[i] {
+		if g.seen[id] {
+			continue
+		}
+		if g.seen == nil {
+			g.seen = map[int]bool{}
+		}
+		g.seen[id] = true
+		for _, a := range s.Attr {
+			if a.ID != id {
+				continue
+			}
+			g.Happy = clamp(g.Happy+a.Def.Charm, 0, 100)
+			if s.chance(0.25) {
+				switch a.Def.ID {
+				case "flowers":
+					g.think(s, pick(s, "Pretty flowers!", "Smell those petunias!"), 0.6)
+				case "arch":
+					g.think(s, pick(s, "Look at all the balloons!", "Ooh, balloons!"), 0.6)
+				case "statue":
+					g.think(s, pick(s, "What a handsome statue!", "Is that solid gold?"), 0.6)
+				}
+			}
+		}
+	}
 }
 
 func b2f(b bool) float64 {

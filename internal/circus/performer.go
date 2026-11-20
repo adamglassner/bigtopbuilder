@@ -18,6 +18,7 @@ type Performer struct {
 	Skin   int
 	Shows  int // shows performed, all time
 	Flubs  int
+	Rose   int // stars gained since they joined
 }
 
 // Stars is the performer's skill as 1-5 stars.

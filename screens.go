@@ -114,15 +114,24 @@ func (g *game) drawTitle(p pen) {
 	p.text("Build the greatest show on your turf.", body(20, 600), lx+116, ly+194, alLeft, cCream)
 
 	bx, by, bw := lx, ly+236, 300.0
-	g.button(p, bx, by, bw, 58, "PLAY THE DEMO", bRed, true, func() { g.newRun() })
-	g.button(p, bx, by+72, bw, 46, "How to Play", bDark, true, func() { g.panel = "help" })
-	g.button(p, bx, by+130, bw, 46, "Settings", bDark, true, func() { g.panel = "settings" })
+	if night, cash, ok := g.savedRun(); ok {
+		g.button(p, bx, by, bw, 58, "CONTINUE · NIGHT "+itoa(night), bRed, true, func() { g.continueRun() })
+		p.text(money(cash)+" in the cash box", body(13, 500), bx+bw+16, by+29, alLeft, cTan)
+		by += 72
+		g.button(p, bx, by, bw, 46, "New Circus", bDark, true, func() { g.panel = "newrun" })
+		by += 58
+	} else {
+		g.button(p, bx, by, bw, 58, "PLAY THE DEMO", bRed, true, func() { g.newRun() })
+		by += 72
+	}
+	g.button(p, bx, by, bw, 46, "How to Play", bDark, true, func() { g.panel = "help" })
+	g.button(p, bx, by+58, bw, 46, "Settings", bDark, true, func() { g.panel = "settings" })
 	if runtime.GOOS != "js" {
-		g.button(p, bx, by+188, bw, 46, "Quit", bDark, true, func() { g.quit = true })
+		g.button(p, bx, by+116, bw, 46, "Quit", bDark, true, func() { g.quit = true })
 	}
 	st := g.save.Stats
 	if st.BestNight > 0 {
-		p.text("Longest run: "+itoa(st.BestNight)+" nights · Best cash "+money(st.BestCash), body(13, 500), bx, by+258, alLeft, cTan)
+		p.text("Longest run: "+itoa(st.BestNight)+" nights · Best cash "+money(st.BestCash), body(13, 500), bx, by+186, alLeft, cTan)
 	}
 	p.text("v"+version+" · Demo · © 2026 Ironite", body(12, 400), 24, 880, alLeft, withA(cTan, 0.8))
 	if art.logo != nil {
@@ -148,7 +157,7 @@ func (g *game) drawMenu(p pen) {
 	g.button(p, bx, by+60, bw, 44, "How to Play", bDark, true, func() { g.panel = "help" })
 	g.button(p, bx, by+114, bw, 44, "Settings", bDark, true, func() { g.panel = "settings" })
 	g.button(p, bx, by+168, bw, 44, "Start Over", bDark, true, func() { g.newRun() })
-	g.button(p, bx, by+222, bw, 44, "Quit to Title", bRed, true, func() { g.panel = ""; g.screen = "title"; g.sim = nil })
+	g.button(p, bx, by+222, bw, 44, "Quit to Title", bRed, true, func() { g.saveRun(); g.panel = ""; g.screen = "title"; g.sim = nil })
 }
 
 func (g *game) drawSettings(p pen) {
@@ -207,12 +216,12 @@ func (g *game) drawHelp(p pen) {
 	col(x+40, [][2]string{
 		{"Your circus", "You run a circus in Brookhaven. Keep it going as many nights as you like. Just don't run out of money!"},
 		{"Daytime: build", "Pick something from the bar at the bottom and click the grounds to build it. Guests line up at the gold square in front. Click anything you've built to change its price, or sell it. Lay paths from Extras by clicking and dragging."},
-		{"Hire your troupe", "Open the Troupe to sign clowns, jugglers, acrobats, fire breathers and more. Better performers cost more and earn more each night."},
+		{"Hire your troupe", "Open the Troupe to sign clowns, jugglers, acrobats, fire breathers and more. Every clean show is practice, and acts slowly earn more stars."},
 	})
 	col(x+450, [][2]string{
 		{"Plan the show", "Click a tent and book acts into its lineup. Open with Laughs, mix it up, and close with Thrills for a big finish. The trapeze only fits in the Big Top."},
 		{"Showtime", "From 6 to 11 PM guests pay admission, watch shows, eat and explore. Each show tires the acts out, and tired acts flub, so swap them around."},
-		{"Keep guests happy", "Food and drink keep them going, benches rest them, light poles brighten dark corners and trash cans keep litter down. Guests walk faster on paths and stay out of the mud. Happy guests bring bigger crowds."},
+		{"Keep guests happy", "Food and drink, benches, lights, paths and decorations all help. A grounds crew sweeps up litter, and posters in the morning bring a bigger crowd. Your circus saves every morning."},
 	})
 	p.text("Space: pause · 1-3: speed · Esc: cancel or menu · M: music · F11: full screen · Delete: sell", body(12, 500), x+430, y+500, alCenter, cMuted)
 	g.button(p, x+710, y+20, 120, 40, "Close", bGold, true, func() { g.back() })
@@ -241,14 +250,14 @@ func (g *game) drawResults(p pen) {
 	p.text("Money out", head(16), rx, yy, alLeft, cBad)
 	yy += 32
 	in := [][2]any{{"Admissions", r.Admissions}, {"Show tickets", r.Shows}, {"Sideshows", r.Sideshows}, {"Food & drink", r.Food}}
-	out := [][2]any{{"Troupe wages", r.Wages}, {"Hiring", r.Hiring}, {"Food supplies", r.Goods}, {"Upkeep", r.Upkeep}, {"Litter cleanup", r.Cleanup}}
+	out := [][2]any{{"Wages", r.Wages}, {"Hiring", r.Hiring}, {"Posters", r.Posters}, {"Food supplies", r.Goods}, {"Upkeep", r.Upkeep}, {"Litter cleanup", r.Cleanup}}
 	for i, l := range in {
-		line(lx, yy+float64(i)*28, l[0].(string), l[1].(int), false)
+		line(lx, yy+float64(i)*24, l[0].(string), l[1].(int), false)
 	}
 	for i, l := range out {
-		line(rx, yy+float64(i)*28, l[0].(string), l[1].(int), true)
+		line(rx, yy+float64(i)*24, l[0].(string), l[1].(int), true)
 	}
-	yy += 5*28 + 14
+	yy += 6*24 + 10
 	p.line(x+40, yy, x+680, yy, 1, cLine)
 	yy += 34
 	pc := cGold
@@ -288,5 +297,15 @@ func (g *game) drawBroke(p pen) {
 	p.text("Out of Money", display(36), x+280, y+60, alCenter, cBad)
 	p.para("The bank won't spot you any more. The circus has to fold, for now. Try a smaller troupe, fewer tents and fair prices.", body(15, 400), x+50, y+110, 460, 21, cCream)
 	g.button(p, x+50, y+220, 220, 50, "Try Again", bRed, true, func() { g.newRun() })
-	g.button(p, x+290, y+220, 220, 50, "Main Menu", bDark, true, func() { g.screen = "title"; g.sim = nil })
+	g.button(p, x+290, y+220, 220, 50, "Main Menu", bDark, true, func() { g.deleteRun(); g.screen = "title"; g.sim = nil })
+}
+
+// drawNewRun asks before a new circus replaces the saved one.
+func (g *game) drawNewRun(p pen) {
+	x, y := g.dialog(p, 560, 250)
+	p.text("Start a new circus?", display(30), x+280, y+52, alCenter, cGold)
+	night, _, _ := g.savedRun()
+	p.para("Your saved circus on night "+itoa(night)+" will be replaced. Your achievements and records are kept.", body(15, 400), x+50, y+96, 460, 21, cCream)
+	g.button(p, x+50, y+170, 220, 50, "Start New Circus", bRed, true, func() { g.panel = ""; g.newRun() })
+	g.button(p, x+290, y+170, 220, 50, "Keep My Circus", bDark, true, func() { g.panel = "" })
 }

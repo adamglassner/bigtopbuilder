@@ -145,7 +145,11 @@ func (g *game) drawTentInspector(p pen, x, y, w float64) {
 	a := g.sel
 	d := a.Def
 	p.text("Tent · "+itoa(a.Booked())+" of "+itoa(d.Slots)+" acts booked", body(11, 600), x, y+4, alLeft, cMint)
-	p.text(d.Name, display(22), x, y+30, alLeft, cGold)
+	nf := display(22)
+	if textW(d.Name, nf) > w-40 {
+		nf = display(18)
+	}
+	p.text(d.Name, nf, x, y+30, alLeft, cGold)
 	g.closeX(p, x+w-30, y-6, func() { g.sel = nil })
 	y += 54
 	status, sc := "Ready for tonight", cTan
@@ -233,7 +237,7 @@ func (g *game) drawTentInspector(p pen, x, y, w float64) {
 				nc = cBad
 			}
 		}
-		p.text(note, body(10, 500), x+60, ry+31, alLeft, nc)
+		p.text(fit(note, body(10, 500), w-130), body(10, 500), x+60, ry+31, alLeft, nc)
 		g.onClick(x, ry, w-70, rh, func() { g.slotPick = i; snd.play("click") })
 		// running order controls
 		bx := x + w - 66

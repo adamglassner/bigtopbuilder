@@ -140,11 +140,20 @@ func (g *game) drawAttraction(p pen, d *ct.Def, x, y float64, a *ct.Attraction) 
 	cx, by := x+w/2, y+h-4
 	t := g.clock
 	switch d.ID {
-	case "ringtent", "bigtop":
+	case "ringtent", "bigtop", "threering":
 		drawTent(p, d, cx, by, w, a, t)
-	case "threering", "cannon":
-		p.rrect(x+6, y+6, w-12, h-12, 8, cPanel2)
-		p.text("?", display(40), cx, y+h/2, alCenter, cMuted)
+	case "cannon":
+		drawCannon(p, x, y, w, h, t, a)
+	case "flowers":
+		seed := 0
+		if a != nil {
+			seed = a.ID
+		}
+		drawFlowers(p, cx, by, t, seed)
+	case "arch":
+		drawArch(p, x, by, w, t)
+	case "statue":
+		drawStatue(p, cx, by, t)
 	case "funhouse":
 		drawFunhouse(p, x, y, w, h, t, a)
 	case "mirrors":
@@ -275,6 +284,14 @@ func (g *game) drawWorld(p pen) {
 		_, y := tilePx(gu.X, gu.Y)
 		items = append(items, item{y, func() { g.drawGuest(p, gu) }})
 	}
+	for _, c := range g.sim.Crew {
+		if g.sim.Phase != ct.PhaseNight {
+			break
+		}
+		c := c
+		_, y := tilePx(c.X, c.Y)
+		items = append(items, item{y, func() { g.drawSweeper(p, c) }})
+	}
 	sort.SliceStable(items, func(i, j int) bool { return items[i].y < items[j].y })
 	g.drawBeams(p)
 	for _, it := range items {
@@ -358,9 +375,10 @@ func (g *game) drawBulbs(p pen, a *ct.Attraction, d float64) {
 		p.glow(bx, byy, 7, c, 0.2*d)
 	}
 	switch a.Def.ID {
-	case "ringtent", "bigtop":
-		_, apex := tentRoof(cx, by, w, map[bool]float64{true: 46, false: 34}[a.Def.ID == "bigtop"], map[bool]float64{true: 92, false: 64}[a.Def.ID == "bigtop"], lookOf(a.Def.ID).peaks)
-		eave := by - map[bool]float64{true: 46, false: 34}[a.Def.ID == "bigtop"]
+	case "ringtent", "bigtop", "threering":
+		lk := lookOf(a.Def.ID)
+		_, apex := tentRoof(cx, by, w, lk.wallH, lk.roofH, lk.peaks)
+		eave := by - lk.wallH
 		half := w*0.46 + 6
 		i := 0
 		for _, ap := range apex {
@@ -368,6 +386,8 @@ func (g *game) drawBulbs(p pen, a *ct.Attraction, d float64) {
 				ex := ap[0] + side*half*0.9
 				if len(apex) == 2 {
 					ex = ap[0] + side*half*0.55
+				} else if len(apex) == 3 {
+					ex = ap[0] + side*half*0.38
 				}
 				for k := 1; k <= 6; k++ {
 					f := float64(k) / 7
@@ -403,42 +423,28 @@ func (g *game) drawBeams(p pen) {
 	}
 }
 
-var (
-	cPath   = hex(0xd8bd8e)
-	cPathDk = hex(0xa98a5c)
-)
-
-// drawPathTile draws one tile of path; join says which sides (right, left,
-// down, up) connect to the next path tile.
-// pass 0 draws the edging and pass 1 the gravel; every tile's edging goes
-// down before any gravel, so joins don't leave seams.
+// drawPathTile draws one tile of path in the same packed dirt as the path
+// in through the gate; join says which sides (right, left, down, up)
+// connect to the next path tile. Pass 0 draws nothing (kept so callers can
+// draw every tile in two passes).
 func drawPathTile(p pen, x, y float64, join [4]bool, seed, pass int) {
-	in := 5.0
-	{
-		c := []color.RGBA{cPathDk, cPath}[pass]
-		e := 1.0 - float64(pass) // the edging sticks out 1px
-		p.rrect(x+in-e, y+in-e, TS-2*in+2*e, TS-2*in+2*e, 8+e, c)
-		if join[0] {
-			p.rect(x+TS/2, y+in-e, TS/2+1, TS-2*in+2*e, c)
-		}
-		if join[1] {
-			p.rect(x-1, y+in-e, TS/2+1, TS-2*in+2*e, c)
-		}
-		if join[2] {
-			p.rect(x+in-e, y+TS/2, TS-2*in+2*e, TS/2+1, c)
-		}
-		if join[3] {
-			p.rect(x+in-e, y-1, TS-2*in+2*e, TS/2+1, c)
-		}
-	}
 	if pass == 0 {
 		return
 	}
-	// a few pebbles
-	for k := 0; k < 4; k++ {
-		px := x + 10 + math.Mod(float64(seed*37+k*53), TS-20)
-		py := y + 10 + math.Mod(float64(seed*61+k*29), TS-20)
-		p.ellipse(px, py, 2.4, 1.6, withA(cPathDk, 0.7))
+	c := mix(cDirt, cGrass, 0.2)
+	in := 4.0
+	p.rect(x+in, y+in, TS-2*in, TS-2*in, c)
+	if join[0] {
+		p.rect(x+TS-in, y+in, in+0.5, TS-2*in, c)
+	}
+	if join[1] {
+		p.rect(x-0.5, y+in, in+0.5, TS-2*in, c)
+	}
+	if join[2] {
+		p.rect(x+in, y+TS-in, TS-2*in, in+0.5, c)
+	}
+	if join[3] {
+		p.rect(x+in, y-0.5, TS-2*in, in+0.5, c)
 	}
 }
 
@@ -465,8 +471,7 @@ func (g *game) drawPaths(p pen) {
 		ex, ey := a.Entrance()
 		if s.IsPath(ex, ey) {
 			px, py := tilePx(float64(ex), float64(ey))
-			p.rect(px+4, py-2, TS-8, 10, cPathDk)
-			p.rect(px+5, py-2, TS-10, 9, cPath)
+			p.rect(px+4, py-2, TS-8, 8, mix(cDirt, cGrass, 0.2))
 		}
 	}
 }
